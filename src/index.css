@@ -9,8 +9,8 @@
   --accent-sun: #f5c842;
   --accent-clear: #7dd3fc;
   --blur: blur(20px);
-  --font-display: 'Outfit', system-ui, sans-serif;
-  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-display: 'Nunito', system-ui, sans-serif;
+  --font-body: 'Nunito Sans', system-ui, sans-serif;
   --radius: 20px;
   --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.2);
   --shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.3);
@@ -31,11 +31,18 @@ html {
 body {
   margin: 0;
   font-family: var(--font-body);
+  font-weight: 300;
   color: var(--text-primary);
   background: var(--bg-base);
   min-height: 100svh;
   min-height: 100dvh;
   overflow-x: hidden;
+  line-height: 1.6;
+}
+
+/* Label letter-spacing */
+.weather-label {
+  letter-spacing: 0.04em;
 }
 
 /* Noise overlay for depth */
@@ -184,6 +191,16 @@ body::before {
 @keyframes shimmer {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
+}
+
+/* Location detecting pulse */
+.search-pulse {
+  animation: searchPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes searchPulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.2); }
 }
 
 /* Scrollbar hide for hourly strip */

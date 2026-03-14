@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Chart, CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, registerables } from 'chart.js';
+
+Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, ...registerables);
 
 const STORAGE_KEY = 'weather-location';
-const PRESET_CITIES = [
-  { name: 'New York', lat: 40.7128, lon: -74.006, displayName: 'New York, NY' },
-  { name: 'Los Angeles', lat: 34.0522, lon: -118.2437, displayName: 'Los Angeles, CA' },
-  { name: 'Chicago', lat: 41.8781, lon: -87.6298, displayName: 'Chicago, IL' },
-  { name: 'Miami', lat: 25.7617, lon: -80.1918, displayName: 'Miami, FL' },
-];
+const NOMINATIM_SEARCH = 'https://nominatim.openstreetmap.org/search';
+const NOMINATIM_REVERSE = 'https://nominatim.openstreetmap.org/reverse';
+const IPAPI_URL = 'https://ipapi.co/json/';
 
 function fToC(f) {
   if (f == null) return null;
@@ -34,15 +34,22 @@ function windDirectionToDegrees(dir) {
   return map[dir.toUpperCase()] ?? 0;
 }
 
-function shortForecastToIcon(shortForecast) {
-  if (!shortForecast) return 'cloud';
+/** Map NWS shortForecast to Meteocons (Iconify) icon names */
+function shortForecastToMeteocon(shortForecast, isDaytime = true) {
+  if (!shortForecast) return 'meteocons:overcast-fill';
   const s = shortForecast.toLowerCase();
-  if (s.includes('sunny') || s.includes('clear')) return 'sun';
-  if (s.includes('rain') || s.includes('drizzle')) return 'rain';
-  if (s.includes('snow')) return 'snow';
-  if (s.includes('cloud') || s.includes('overcast')) return 'cloud';
-  if (s.includes('thunder')) return 'storm';
-  return 'cloud';
+  if (s.includes('sunny')) return 'meteocons:clear-day-fill';
+  if (s.includes('clear')) return isDaytime ? 'meteocons:clear-day-fill' : 'meteocons:clear-night-fill';
+  if (s.includes('partly cloudy')) return isDaytime ? 'meteocons:partly-cloudy-day-fill' : 'meteocons:partly-cloudy-night-fill';
+  if (s.includes('mostly cloudy') || s.includes('cloudy') || s.includes('overcast')) return 'meteocons:overcast-fill';
+  if (s.includes('rain') && s.includes('thunder')) return 'meteocons:thunderstorms-rain-fill';
+  if (s.includes('thunder')) return 'meteocons:thunderstorms-rain-fill';
+  if (s.includes('rain')) return 'meteocons:rain-fill';
+  if (s.includes('showers') || s.includes('drizzle')) return 'meteocons:drizzle-fill';
+  if (s.includes('snow')) return 'meteocons:snow-fill';
+  if (s.includes('fog') || s.includes('mist')) return 'meteocons:fog-fill';
+  if (s.includes('wind')) return 'meteocons:wind-fill';
+  return 'meteocons:overcast-fill';
 }
 
 function getGradientForCondition(shortForecast, isDaytime) {
@@ -66,31 +73,93 @@ export default function App() {
   const [query, setQuery] = useState('');
   const [geocodeResults, setGeocodeResults] = useState([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
   const [selectedPlace, setSelectedPlace] = useState(null);
+  const [locationDetecting, setLocationDetecting] = useState(false);
   const [points, setPoints] = useState(null);
   const [forecast, setForecast] = useState(null);
   const [forecastHourly, setForecastHourly] = useState(null);
-  const [status, setStatus] = useState('idle'); // idle | loading | success | error
+  const [status, setStatus] = useState('idle');
   const [errorMessage, setErrorMessage] = useState('');
   const [unitPrimary, setUnitPrimary] = useState('F');
   const [expandedDayIndex, setExpandedDayIndex] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [liveMapOpen, setLiveMapOpen] = useState(false);
   const debounceRef = useRef(null);
   const dropdownRef = useRef(null);
+  const chartRef = useRef(null);
+  const chartInstanceRef = useRef(null);
 
   const loadSavedPlace = useCallback(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const place = JSON.parse(raw);
-        if (place?.lat != null && place?.lon != null) setSelectedPlace(place);
+        if (place?.lat != null && place?.lon != null) return place;
       }
     } catch (_) {}
+    return null;
+  }, []);
+
+  const reverseGeocode = useCallback(async (lat, lon) => {
+    const url = `${NOMINATIM_REVERSE}?lat=${lat}&lon=${lon}&format=json`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'WeatherApp/2.0' } });
+    const data = await res.json();
+    const addr = data?.address || {};
+    const city = addr.city || addr.town || addr.village || addr.municipality || '';
+    const state = addr.state || '';
+    const country = addr.country_code?.toUpperCase() || '';
+    const parts = [city, state].filter(Boolean);
+    const displayName = parts.length ? `${parts.join(', ')}` : data?.display_name || `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+    return { lat, lon, displayName };
   }, []);
 
   useEffect(() => {
-    loadSavedPlace();
-  }, [loadSavedPlace]);
+    const saved = loadSavedPlace();
+    if (saved) {
+      setSelectedPlace(saved);
+      return;
+    }
+    setLocationDetecting(true);
+    const onSuccess = async (pos) => {
+      const { latitude, longitude } = pos.coords;
+      if (!isInUS(latitude, longitude)) {
+        setLocationDetecting(false);
+        setSearchFocused(true);
+        return;
+      }
+      try {
+        const place = await reverseGeocode(latitude, longitude);
+        setSelectedPlace(place);
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(place));
+        } catch (_) {}
+      } catch (_) {}
+      setLocationDetecting(false);
+    };
+    const onFail = async () => {
+      try {
+        const res = await fetch(IPAPI_URL);
+        const data = await res.json();
+        const lat = parseFloat(data.latitude);
+        const lon = parseFloat(data.longitude);
+        if (Number.isFinite(lat) && Number.isFinite(lon) && isInUS(lat, lon)) {
+          const place = await reverseGeocode(lat, lon);
+          setSelectedPlace(place);
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(place));
+          } catch (_) {}
+        }
+      } catch (_) {}
+      setLocationDetecting(false);
+      setSearchFocused(true);
+    };
+    if (!navigator.geolocation) {
+      onFail();
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(onSuccess, onFail, { timeout: 8000, maximumAge: 300000 });
+  }, [loadSavedPlace, reverseGeocode]);
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -111,8 +180,8 @@ export default function App() {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
       try {
-        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&countrycodes=us&format=json&limit=5`;
-        const res = await fetch(url, { headers: { 'User-Agent': 'WeatherApp/1.0' } });
+        const url = `${NOMINATIM_SEARCH}?q=${encodeURIComponent(query)}&format=json&limit=5&countrycodes=us`;
+        const res = await fetch(url, { headers: { 'User-Agent': 'WeatherApp/2.0' } });
         const data = await res.json();
         const list = Array.isArray(data) ? data.filter((r) => r.lat && r.lon && isInUS(parseFloat(r.lat), parseFloat(r.lon))) : [];
         setGeocodeResults(list);
@@ -185,7 +254,11 @@ export default function App() {
   }, [selectedPlace]);
 
   const handleSelectPlace = useCallback((place) => {
-    const item = { lat: parseFloat(place.lat), lon: parseFloat(place.lon), displayName: place.display_name || `${place.name || ''}, ${place.state || 'US'}`.trim() };
+    const item = {
+      lat: parseFloat(place.lat),
+      lon: parseFloat(place.lon),
+      displayName: place.display_name || `${place.name || ''}, ${place.state || 'US'}`.trim(),
+    };
     setSelectedPlace(item);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(item));
@@ -193,15 +266,7 @@ export default function App() {
     setQuery('');
     setGeocodeResults([]);
     setDropdownOpen(false);
-  }, []);
-
-  const handlePreset = useCallback((preset) => {
-    setSelectedPlace({ lat: preset.lat, lon: preset.lon, displayName: preset.displayName });
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ lat: preset.lat, lon: preset.lon, displayName: preset.displayName }));
-    } catch (_) {}
-    setQuery('');
-    setDropdownOpen(false);
+    setSearchFocused(false);
   }, []);
 
   const refresh = useCallback(() => {
@@ -273,16 +338,14 @@ export default function App() {
   const todayHigh = todayDayPeriod?.temperature ?? currentPeriod?.temperature;
   const todayLow = todayNightPeriod?.temperature ?? periods.find((p) => !p.isDaytime)?.temperature ?? currentPeriod?.temperature;
 
-  const showPrecipStrip = hourlyPeriods.slice(0, 7).some((p) => {
-    const prob = p.probabilityOfPrecipitation?.value ?? 0;
-    const s = (p.shortForecast || '').toLowerCase();
-    return prob >= 40 || s.includes('rain') || s.includes('snow') || s.includes('precip');
-  });
-
-  const firstHighPrecipHour = hourlyPeriods.find((p) => (p.probabilityOfPrecipitation?.value ?? 0) >= 40);
-  const precipLabel = firstHighPrecipHour ? `Rain expected ${formatTime(firstHighPrecipHour.startTime)}` : 'Precipitation possible';
-
-  const next7Hourly = hourlyPeriods.slice(0, 7);
+  const next24Hourly = hourlyPeriods.slice(0, 24);
+  const precipPeak = next24Hourly.reduce((best, p) => {
+    const val = p.probabilityOfPrecipitation?.value ?? 0;
+    return val > (best?.val ?? 0) ? { period: p, val } : best;
+  }, null);
+  const precipHeader = precipPeak && precipPeak.val >= 20
+    ? `Rain expected at ${formatTime(precipPeak.period.startTime)}`
+    : 'Next 24 hours';
 
   const dayGroups = [];
   const seen = new Set();
@@ -300,12 +363,10 @@ export default function App() {
     const h = now.getHours();
     const s = currentPeriod?.shortForecast ?? '';
     const lower = s.toLowerCase();
-    if (h >= 5 && h < 12) return lower.includes('rain') || lower.includes('snow') ? 'Good morning, bring an umbrella' : 'Good morning, clear skies ahead';
-    if (h >= 12 && h < 17) return lower.includes('rain') || lower.includes('snow') ? 'Afternoon showers possible' : 'Good afternoon';
-    return lower.includes('rain') || lower.includes('snow') ? 'Tonight looks rainy' : 'Tonight looks clear';
+    if (h >= 5 && h < 12) return lower.includes('rain') || lower.includes('snow') ? 'Good morning, expect rain today.' : 'Good morning, clear skies ahead.';
+    if (h >= 12 && h < 17) return lower.includes('rain') || lower.includes('snow') ? 'Good afternoon, showers possible.' : 'Good afternoon.';
+    return lower.includes('rain') || lower.includes('snow') ? 'Good evening, expect rain tonight.' : 'Good evening, clear tonight.';
   };
-
-  const isPresetActive = (preset) => selectedPlace && Math.abs(selectedPlace.lat - preset.lat) < 0.01 && Math.abs(selectedPlace.lon - preset.lon) < 0.01;
 
   return (
     <>
@@ -317,150 +378,137 @@ export default function App() {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
       >
-        {/* Search + refresh + unit toggle row */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
-          <div ref={dropdownRef} style={{ flex: 1, position: 'relative' }}>
-            <input
-              type="text"
-              placeholder="Search US city..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onFocus={() => geocodeResults.length > 0 && setDropdownOpen(true)}
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                borderRadius: 12,
-                border: '1px solid var(--border-glass)',
-                background: 'var(--bg-card)',
-                color: 'var(--text-primary)',
-                fontFamily: 'var(--font-body)',
-                fontSize: 16,
-                outline: 'none',
-              }}
-            />
-            <AnimatePresence>
-              {dropdownOpen && geocodeResults.length > 0 && (
-                <motion.ul
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.2 }}
-                  style={{
-                    position: 'absolute',
-                    top: '100%',
-                    left: 0,
-                    right: 0,
-                    margin: 0,
-                    padding: 0,
-                    listStyle: 'none',
-                    marginTop: 4,
-                    borderRadius: 12,
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border-glass)',
-                    backdropFilter: 'var(--blur)',
-                    zIndex: 10,
-                    maxHeight: 220,
-                    overflowY: 'auto',
-                  }}
-                >
-                  {geocodeResults.map((r) => (
-                    <li
-                      key={r.place_id || r.lat + r.lon}
-                      onClick={() => handleSelectPlace(r)}
-                      style={{
-                        padding: '12px 16px',
-                        cursor: 'pointer',
-                        color: 'var(--text-primary)',
-                        borderBottom: '1px solid var(--border-glass)',
-                      }}
-                    >
-                      {r.display_name}
-                    </li>
-                  ))}
-                </motion.ul>
-              )}
-            </AnimatePresence>
-          </div>
-          <motion.button
-            type="button"
-            onClick={refresh}
-            disabled={!selectedPlace || refreshing}
+        {/* Search bar — pill, glassmorphism, pin + city left / search right */}
+        <div ref={dropdownRef} style={{ position: 'relative' }}>
+          <motion.div
+            className="glass-card"
             style={{
-              width: 44,
-              height: 44,
-              borderRadius: 12,
-              border: '1px solid var(--border-glass)',
-              background: 'var(--bg-card)',
-              color: 'var(--text-primary)',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              cursor: selectedPlace && !refreshing ? 'pointer' : 'default',
-            }}
-            animate={{ rotate: refreshing ? 360 : 0 }}
-            transition={{ duration: 1, repeat: refreshing ? Infinity : 0, ease: 'linear' }}
-          >
-            <RefreshIcon />
-          </motion.button>
-          <button
-            type="button"
-            onClick={() => setUnitPrimary((u) => (u === 'F' ? 'C' : 'F'))}
-            style={{
-              padding: '8px 12px',
-              borderRadius: 20,
+              borderRadius: 9999,
+              padding: '10px 16px',
+              minHeight: 48,
               border: '1px solid var(--border-glass)',
-              background: 'var(--bg-card)',
-              color: 'var(--text-primary)',
-              fontFamily: 'var(--font-body)',
-              fontSize: 14,
-              cursor: 'pointer',
+              background: 'rgba(10, 15, 30, 0.7)',
             }}
+            initial={false}
+            animate={{ opacity: 1 }}
           >
-            °{unitPrimary}
-          </button>
-        </div>
-
-        {/* Preset chips */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {PRESET_CITIES.map((preset) => (
-            <motion.button
-              key={preset.name}
+            {searchFocused ? (
+              <input
+                type="text"
+                placeholder="Search a US city..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onBlur={() => setTimeout(() => { if (!dropdownOpen) setSearchFocused(false); }, 180)}
+                autoFocus
+                style={{
+                  flex: 1,
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text-primary)',
+                  fontFamily: 'var(--font-body)',
+                  fontSize: 15,
+                  outline: 'none',
+                  letterSpacing: '0.04em',
+                }}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={() => setSearchFocused(true)}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  border: 'none',
+                  background: 'transparent',
+                  color: selectedPlace ? 'var(--text-primary)' : 'var(--text-secondary)',
+                  fontFamily: 'var(--font-body)',
+                  fontSize: 15,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                <PinIcon />
+                {locationDetecting ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span className="search-pulse" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-clear)' }} />
+                    Detecting…
+                  </span>
+                ) : selectedPlace ? (
+                  selectedPlace.displayName
+                ) : (
+                  'Search a US city…'
+                )}
+              </button>
+            )}
+            <button
               type="button"
-              onClick={() => handlePreset(preset)}
+              onClick={() => setSearchFocused(true)}
               style={{
-                padding: '10px 16px',
-                borderRadius: 20,
-                border: isPresetActive(preset) ? '1px solid var(--accent-clear)' : '1px solid var(--border-glass)',
-                background: isPresetActive(preset) ? 'rgba(125, 211, 252, 0.1)' : 'var(--bg-card)',
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                border: 'none',
+                background: 'rgba(255,255,255,0.08)',
                 color: 'var(--text-primary)',
-                fontFamily: 'var(--font-body)',
-                fontSize: 14,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 cursor: 'pointer',
-                position: 'relative',
-                boxShadow: isPresetActive(preset) ? '0 0 12px rgba(125, 211, 252, 0.3)' : 'none',
               }}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              aria-label="Search"
             >
-              {preset.name}
-              {isPresetActive(preset) && (
-                <motion.span
-                  layoutId="preset-underline"
-                  style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    left: 8,
-                    right: 8,
-                    height: 2,
-                    background: 'var(--accent-clear)',
-                    borderRadius: 1,
-                    boxShadow: '0 0 8px var(--accent-clear)',
-                  }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                />
-              )}
-            </motion.button>
-          ))}
+              <SearchIcon />
+            </button>
+          </motion.div>
+          <AnimatePresence>
+            {dropdownOpen && geocodeResults.length > 0 && (
+              <motion.ul
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.15 }}
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  left: 0,
+                  right: 0,
+                  margin: 0,
+                  padding: 0,
+                  listStyle: 'none',
+                  marginTop: 6,
+                  borderRadius: 16,
+                  background: 'rgba(10, 15, 30, 0.95)',
+                  border: '1px solid var(--border-glass)',
+                  backdropFilter: 'var(--blur)',
+                  zIndex: 10,
+                  maxHeight: 220,
+                  overflowY: 'auto',
+                }}
+              >
+                {geocodeResults.map((r) => (
+                  <li
+                    key={r.place_id || r.lat + r.lon}
+                    onClick={() => handleSelectPlace(r)}
+                    style={{
+                      padding: '12px 16px',
+                      cursor: 'pointer',
+                      color: 'var(--text-primary)',
+                      borderBottom: '1px solid var(--border-glass)',
+                      fontFamily: 'var(--font-body)',
+                      fontSize: 14,
+                    }}
+                  >
+                    {r.display_name}
+                  </li>
+                ))}
+              </motion.ul>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Error state */}
@@ -498,10 +546,10 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* Hero card */}
+        {/* Hero card — no city name; greeting, temp, condition once, °F|°C pill bottom-right */}
         {selectedPlace && (
           <AnimatePresence mode="wait">
-            {status === 'loading' && (
+            {(status === 'loading' || locationDetecting) && (
               <motion.div
                 key="hero-skeleton"
                 initial={{ opacity: 0 }}
@@ -510,12 +558,12 @@ export default function App() {
                 className="glass-card"
                 style={{ padding: 24, minHeight: 280 }}
               >
-                <div className="shimmer" style={{ height: 48, width: '60%', marginBottom: 16 }} />
-                <div className="shimmer" style={{ height: 24, width: '40%', marginBottom: 24 }} />
-                <div className="shimmer" style={{ height: 80, width: '80%' }} />
+                <div className="shimmer" style={{ height: 20, width: '70%', marginBottom: 16 }} />
+                <div className="shimmer" style={{ height: 72, width: '50%', marginBottom: 16 }} />
+                <div className="shimmer" style={{ height: 24, width: '60%' }} />
               </motion.div>
             )}
-            {status === 'success' && currentPeriod && (
+            {status === 'success' && currentPeriod && !locationDetecting && (
               <motion.div
                 key="hero"
                 initial={{ opacity: 0, y: 20 }}
@@ -527,88 +575,85 @@ export default function App() {
                   padding: 24,
                   background: getGradientForCondition(currentPeriod.shortForecast, currentPeriod.isDaytime),
                   backgroundSize: '200% 200%',
-                  transition: 'background 1.5s ease',
+                  transition: 'background 2s ease',
+                  position: 'relative',
                 }}
               >
-                <p style={{ margin: '0 0 8px', fontSize: 14, color: 'var(--text-secondary)' }}>{timeGreeting()}</p>
-                <p style={{ margin: '0 0 4px', fontFamily: 'var(--font-display)', fontSize: 13, color: 'var(--text-secondary)' }}>{selectedPlace.displayName}</p>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+                <p style={{ margin: '0 0 12px', fontSize: 13, fontStyle: 'italic', opacity: 0.6, fontFamily: 'var(--font-body)' }}>
+                  {timeGreeting()}
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
                   <div>
                     <TemperatureDisplay value={currentPeriod.temperature} unitPrimary={unitPrimary} />
-                    <p style={{ margin: '4px 0 0', fontSize: 18, color: 'var(--text-secondary)' }}>{currentPeriod.shortForecast}</p>
-                    <p style={{ margin: '8px 0 0', fontSize: 14, color: 'var(--text-secondary)' }}>
+                    <p style={{ margin: '8px 0 0', fontSize: 18, color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}>
+                      {currentPeriod.shortForecast}
+                    </p>
+                    <p style={{ margin: '6px 0 0', fontSize: 14, color: 'var(--text-secondary)' }}>
                       Feels like {unitPrimary === 'F' ? currentPeriod.temperature : fToC(currentPeriod.temperature)}°{unitPrimary} ({unitPrimary === 'F' ? fToC(currentPeriod.temperature) : currentPeriod.temperature}°{unitPrimary === 'F' ? 'C' : 'F'})
                     </p>
                     <p style={{ margin: '4px 0 0', fontSize: 14, color: 'var(--text-secondary)' }}>
                       H {todayHigh}° / L {todayLow}°
                     </p>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                    <WeatherIcon name={shortForecastToIcon(currentPeriod.shortForecast)} isDaytime={currentPeriod.isDaytime} />
                     {currentPeriod.windSpeed && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
                         <WindArrow direction={currentPeriod.windDirection} />
-                        <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{currentPeriod.windSpeed}</span>
+                        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{currentPeriod.windSpeed}</span>
                       </div>
                     )}
                   </div>
+                  <MeteoconIcon name={shortForecastToMeteocon(currentPeriod.shortForecast, currentPeriod.isDaytime)} size={96} />
+                </div>
+                <div style={{ position: 'absolute', bottom: 16, right: 16 }}>
+                  <button
+                    type="button"
+                    onClick={() => setUnitPrimary((u) => (u === 'F' ? 'C' : 'F'))}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: 9999,
+                      border: '1px solid var(--border-glass)',
+                      background: 'rgba(255,255,255,0.08)',
+                      color: 'var(--text-primary)',
+                      fontFamily: 'var(--font-body)',
+                      fontSize: 12,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      gap: 4,
+                    }}
+                  >
+                    <span style={{ opacity: unitPrimary === 'F' ? 1 : 0.45 }}>°F</span>
+                    <span style={{ opacity: 0.35 }}>|</span>
+                    <span style={{ opacity: unitPrimary === 'C' ? 1 : 0.45 }}>°C</span>
+                  </button>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
         )}
 
-        {/* Precipitation timeline */}
-        {status === 'success' && showPrecipStrip && next7Hourly.length > 0 && (
-          <motion.section
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="glass-card"
-            style={{ padding: 16 }}
-          >
-            <p style={{ margin: '0 0 12px', fontSize: 14, color: 'var(--text-secondary)' }}>{precipLabel}</p>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 60 }}>
-              {next7Hourly.map((p, i) => {
-                const val = p.probabilityOfPrecipitation?.value ?? 0;
-                return (
-                  <motion.div
-                    key={p.startTime}
-                    initial={{ height: 0 }}
-                    animate={{ height: `${Math.max(4, (val / 100) * 52)}px` }}
-                    transition={{ delay: 0.1 * i, duration: 0.4, ease: 'easeOut' }}
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      borderRadius: 4,
-                      background: 'var(--accent-rain)',
-                      opacity: 0.9,
-                    }}
-                  />
-                );
-              })}
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 11, color: 'var(--text-secondary)' }}>
-              {next7Hourly.map((p) => (
-                <span key={p.startTime} style={{ flex: 1, minWidth: 0, textAlign: 'center' }}>{formatTime(p.startTime)}</span>
-              ))}
-            </div>
-          </motion.section>
+        {/* Precipitation chart — 24h, thin line/area, Chart.js */}
+        {status === 'success' && next24Hourly.length > 0 && (
+          <PrecipChart
+            hourlyPeriods={next24Hourly}
+            formatTime={formatTime}
+            header={precipHeader}
+            chartRef={chartRef}
+            chartInstanceRef={chartInstanceRef}
+          />
         )}
 
-        {/* Hourly strip */}
+        {/* Hourly strip — 72x120 cards, 24 cards, scroll-snap, stagger 50ms */}
         {status === 'success' && hourlyPeriods.length > 0 && (
           <motion.section
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.25, duration: 0.35 }}
           >
-            <h2 style={{ margin: '0 0 12px', fontFamily: 'var(--font-display)', fontSize: 18 }}>Hourly</h2>
+            <h2 className="weather-label" style={{ margin: '0 0 12px', fontFamily: 'var(--font-display)', fontSize: 18 }}>Hourly</h2>
             <div
               className="hide-scrollbar"
               style={{
                 display: 'flex',
-                gap: 12,
+                gap: 10,
                 overflowX: 'auto',
                 scrollSnapType: 'x mandatory',
                 paddingBottom: 8,
@@ -619,25 +664,29 @@ export default function App() {
                 return (
                   <motion.div
                     key={p.startTime}
-                    initial={{ opacity: 0, x: 30 }}
+                    initial={{ opacity: 0, x: 24 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 + i * 0.03 }}
+                    transition={{ delay: 0.3 + i * 0.05, duration: 0.35 }}
                     className="glass-card"
                     style={{
                       flex: '0 0 72px',
+                      minWidth: 72,
+                      height: 120,
                       scrollSnapAlign: 'start',
-                      padding: 12,
-                      border: isNow ? '2px solid var(--accent-clear)' : '1px solid var(--border-glass)',
-                      boxShadow: isNow ? '0 0 16px rgba(125, 211, 252, 0.3)' : undefined,
+                      padding: '10px 8px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1px solid var(--border-glass)',
+                      boxShadow: isNow ? '0 0 0 1.5px rgba(100,180,255,0.8)' : undefined,
                     }}
                   >
-                    <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 4 }}>{i === 0 && isNow ? 'Now' : formatTime(p.startTime)}</div>
-                    <div style={{ fontFamily: 'var(--font-display)', fontSize: 18 }}>{unitPrimary === 'F' ? p.temperature : fToC(p.temperature)}°{unitPrimary}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{fToC(p.temperature)}°C</div>
-                    <div style={{ marginTop: 4 }}>
-                      <SmallWeatherIcon name={shortForecastToIcon(p.shortForecast)} />
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{p.probabilityOfPrecipitation?.value ?? 0}%</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>{isNow ? 'Now' : formatTime(p.startTime)}</div>
+                    <MeteoconIcon name={shortForecastToMeteocon(p.shortForecast, p.isDaytime)} size={32} />
+                    <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 300 }}>{unitPrimary === 'F' ? p.temperature : fToC(p.temperature)}°{unitPrimary}</div>
+                    <div style={{ fontSize: 11, opacity: 0.45 }}>{fToC(p.temperature)}°C</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{p.probabilityOfPrecipitation?.value ?? 0}%</div>
                   </motion.div>
                 );
               })}
@@ -645,15 +694,15 @@ export default function App() {
           </motion.section>
         )}
 
-        {/* 10-day forecast */}
+        {/* 10-day forecast — flex row, breathing room, expandable, stagger 60ms */}
         {status === 'success' && dayGroups.length > 0 && (
           <motion.section
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
           >
-            <h2 style={{ margin: '0 0 12px', fontFamily: 'var(--font-display)', fontSize: 18 }}>10-Day Forecast</h2>
-            <motion.ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 8 }} variants={{ visible: { transition: { staggerChildren: 0.05 } } }} initial="hidden" animate="visible">
+            <h2 className="weather-label" style={{ margin: '0 0 12px', fontFamily: 'var(--font-display)', fontSize: 18 }}>10-Day Forecast</h2>
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
               {dayGroups.map((group, idx) => {
                 const high = group.dayPeriod?.temperature ?? group.nightPeriod?.temperature;
                 const low = group.nightPeriod?.temperature ?? group.dayPeriod?.temperature;
@@ -663,20 +712,27 @@ export default function App() {
                 const windDir = group.dayPeriod?.windDirection || group.nightPeriod?.windDirection || '';
                 const isExpanded = expandedDayIndex === idx;
                 return (
-                  <motion.li key={group.day} variants={{ hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0 } }}>
+                  <motion.li
+                    key={group.day}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 + idx * 0.06, duration: 0.35 }}
+                  >
                     <motion.div
                       className="glass-card"
-                      style={{ padding: 16, overflow: 'hidden' }}
+                      style={{ padding: '14px 16px', overflow: 'hidden', cursor: 'pointer' }}
                       onClick={() => setExpandedDayIndex(isExpanded ? null : idx)}
                       layout
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>{group.name}</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                          <SmallWeatherIcon name={shortForecastToIcon(group.dayPeriod?.shortForecast || group.nightPeriod?.shortForecast)} />
-                          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{precip}%</span>
-                          <span style={{ fontFamily: 'var(--font-display)' }}>H {high}° / L {low}°</span>
-                          <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>({fToC(high)}° / {fToC(low)}°)</span>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                        <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 400, minWidth: 0 }}>{group.name}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 0 }}>
+                          <MeteoconIcon name={shortForecastToMeteocon(group.dayPeriod?.shortForecast || group.nightPeriod?.shortForecast, true)} size={28} />
+                          <span style={{ fontSize: 13, color: 'var(--text-secondary)', minWidth: 28 }}>{precip}%</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 0 }}>
+                          <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600 }}>H {high}° / L {low}°</span>
+                          <span style={{ fontSize: 11, opacity: 0.45 }}>({fToC(high)}°/{fToC(low)}°)</span>
                         </div>
                       </div>
                       <AnimatePresence>
@@ -685,10 +741,10 @@ export default function App() {
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.3 }}
+                            transition={{ duration: 0.25, ease: 'easeInOut' }}
                             style={{ overflow: 'hidden' }}
                           >
-                            <p style={{ margin: '12px 0 0', fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{detailed}</p>
+                            <p style={{ margin: '12px 0 0', fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{detailed}</p>
                             {(wind || windDir) && (
                               <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>Wind: {wind} {windDir}</p>
                             )}
@@ -699,12 +755,66 @@ export default function App() {
                   </motion.li>
                 );
               })}
-            </motion.ul>
+            </ul>
           </motion.section>
         )}
 
-        {!selectedPlace && status === 'idle' && (
-          <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 24 }}>Search for a US city or pick a preset to get started.</p>
+        {/* Live Map — Windy embed */}
+        {status === 'success' && selectedPlace && (
+          <motion.section
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+          >
+            <button
+              type="button"
+              onClick={() => setLiveMapOpen((o) => !o)}
+              className="glass-card"
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                border: '1px solid var(--border-glass)',
+                background: 'rgba(255,255,255,0.06)',
+                color: 'var(--text-primary)',
+                fontFamily: 'var(--font-body)',
+                fontSize: 14,
+                cursor: 'pointer',
+                borderRadius: 12,
+              }}
+            >
+              🛰 Live Map
+            </button>
+            <AnimatePresence>
+              {liveMapOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  style={{ overflow: 'hidden', marginTop: 8 }}
+                >
+                  <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border-glass)' }}>
+                    <iframe
+                      title="Windy Live Map"
+                      src={`https://embed.windy.com/embed.html?lat=${selectedPlace.lat}&lon=${selectedPlace.lon}&zoom=7&level=surface&overlay=clouds`}
+                      width="100%"
+                      height="280"
+                      frameBorder="0"
+                      style={{ display: 'block' }}
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.section>
+        )}
+
+        {!selectedPlace && !locationDetecting && status === 'idle' && (
+          <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 24 }}>Search a US city to get started.</p>
         )}
       </motion.div>
     </>
@@ -733,10 +843,10 @@ function TemperatureDisplay({ value, unitPrimary }) {
   }, [displayVal]);
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}>
-      <span style={{ fontFamily: 'var(--font-display)', fontSize: 56, fontWeight: 300, lineHeight: 1 }}>
+      <span style={{ fontFamily: 'var(--font-display)', fontSize: 72, fontWeight: 300, lineHeight: 1 }}>
         {count}°{unitPrimary}
       </span>
-      <p style={{ margin: '4px 0 0', fontSize: 16, color: 'var(--text-secondary)' }}>{secondary}°{unitPrimary === 'F' ? 'C' : 'F'}</p>
+      <p style={{ margin: '2px 0 0', fontSize: 22, opacity: 0.5 }}>{secondary}°{unitPrimary === 'F' ? 'C' : 'F'}</p>
     </motion.div>
   );
 }
@@ -750,64 +860,100 @@ function WindArrow({ direction }) {
   );
 }
 
-function RefreshIcon() {
+function PinIcon() {
   return (
-    <svg width={20} height={20} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M21 12a9 9 0 11-2.636-6.364M21 12h-4m0 0l2 2m-2-2l2-2" />
+    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flexShrink: 0 }}>
+      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+      <circle cx="12" cy="10" r="3" />
     </svg>
   );
 }
 
-function WeatherIcon({ name, isDaytime }) {
-  const sun = (
-    <svg width={80} height={80} viewBox="0 0 64 64" fill="none" className="icon-sun-rays" style={{ transformOrigin: 'center' }}>
-      <circle cx="32" cy="32" r="12" fill="var(--accent-sun)" className="icon-sun-pulse" />
-      <path d="M32 4v6M32 54v6M4 32h6M54 32h6M12 12l4 4M48 48l4 4M12 52l4-4M48 16l4-4" stroke="var(--accent-sun)" strokeWidth="2" />
-      <path d="M52 12l-4 4M16 48l-4 4M52 52l-4-4M16 16l-4-4" stroke="var(--accent-sun)" strokeWidth="2" />
+function SearchIcon() {
+  return (
+    <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <circle cx="11" cy="11" r="8" />
+      <path d="M21 21l-4.35-4.35" />
     </svg>
   );
-  const cloud = (
-    <svg width={80} height={80} viewBox="0 0 64 64" fill="none" className="icon-cloud-drift">
-      <path d="M48 40H18a10 10 0 010-20c0-6 4-12 10-14 2-6 8-10 14-10 8 0 14 6 14 14 6 2 12 8 12 16 0 6-4 10-10 10z" fill="rgba(255,255,255,0.4)" />
-    </svg>
-  );
-  const rain = (
-    <svg width={80} height={80} viewBox="0 0 64 64" fill="none">
-      <path d="M48 38H18a10 10 0 010-20c0-6 4-12 10-14 2-6 8-10 14-10 8 0 14 6 14 14 6 2 12 8 12 16 0 6-4 10-10 10z" fill="rgba(255,255,255,0.4)" />
-      <path d="M28 44l-2 8M34 44l-2 8M40 44l-2 8" stroke="var(--accent-rain)" strokeWidth="2" className="icon-rain" style={{ animationDuration: '1s' }} />
-    </svg>
-  );
-  const snow = (
-    <svg width={80} height={80} viewBox="0 0 64 64" fill="none">
-      <path d="M48 38H18a10 10 0 010-20c0-6 4-12 10-14 2-6 8-10 14-10 8 0 14 6 14 14 6 2 12 8 12 16 0 6-4 10-10 10z" fill="rgba(255,255,255,0.5)" />
-      <circle cx="28" cy="46" r="2" fill="white" className="icon-snow" />
-      <circle cx="36" cy="50" r="2" fill="white" className="icon-snow" style={{ animationDelay: '0.5s' }} />
-      <circle cx="44" cy="44" r="2" fill="white" className="icon-snow" style={{ animationDelay: '1s' }} />
-    </svg>
-  );
-  const storm = (
-    <svg width={80} height={80} viewBox="0 0 64 64" fill="none">
-      <path d="M48 38H18a10 10 0 010-20c0-6 4-12 10-14 2-6 8-10 14-10 8 0 14 6 14 14 6 2 12 8 12 16 0 6-4 10-10 10z" fill="rgba(255,255,255,0.3)" />
-      <path d="M34 26l-8 12h6l-6 10 14-12h-6l8-10z" fill="var(--accent-sun)" />
-    </svg>
-  );
-  if (name === 'sun') return sun;
-  if (name === 'rain') return rain;
-  if (name === 'snow') return snow;
-  if (name === 'storm') return storm;
-  return cloud;
 }
 
-function SmallWeatherIcon({ name }) {
-  const style = { width: 24, height: 24 };
-  const sun = <svg viewBox="0 0 24 24" fill="var(--accent-sun)" style={style} className="icon-sun-pulse"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4 12h2M18 12h2" stroke="var(--accent-sun)" strokeWidth="1" /></svg>;
-  const cloud = <svg viewBox="0 0 24 24" fill="rgba(255,255,255,0.5)" style={style} className="icon-cloud-bob"><path d="M19 14H7a3 3 0 010-6c0-2 1-4 3-5 1-2 3-3 5-3 3 0 5 2 5 5 2 1 4 3 4 6z" /></svg>;
-  const rain = <svg viewBox="0 0 24 24" style={style}><path d="M19 14H7a3 3 0 010-6c0-2 1-4 3-5 1-2 3-3 5-3 3 0 5 2 5 5 2 1 4 3 4 6z" fill="rgba(255,255,255,0.4)" /><path d="M10 16l-1 4M14 16l-1 4" stroke="var(--accent-rain)" strokeWidth="1" /></svg>;
-  const snow = <svg viewBox="0 0 24 24" style={style}><path d="M19 14H7a3 3 0 010-6c0-2 1-4 3-5 1-2 3-3 5-3 3 0 5 2 5 5 2 1 4 3 4 6z" fill="rgba(255,255,255,0.5)" /><circle cx="10" cy="18" r="1" fill="white" /><circle cx="14" cy="20" r="1" fill="white" /></svg>;
-  const storm = <svg viewBox="0 0 24 24" style={style}><path d="M19 14H7a3 3 0 010-6c0-2 1-4 3-5 1-2 3-3 5-3 3 0 5 2 5 5 2 1 4 3 4 6z" fill="rgba(255,255,255,0.3)" /><path d="M13 10l-3 5h2l-2 4 5-4h-2l3-5z" fill="var(--accent-sun)" /></svg>;
-  if (name === 'sun') return sun;
-  if (name === 'rain') return rain;
-  if (name === 'snow') return snow;
-  if (name === 'storm') return storm;
-  return cloud;
+/** Meteocons via Iconify — use icon name e.g. meteocons:rain-fill */
+function MeteoconIcon({ name, size = 32 }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size, height: size }}>
+      {/* eslint-disable-next-line react/no-unknown-property */}
+      <iconify-icon icon={name} width={size} height={size} style={{ color: 'inherit' }} />
+    </span>
+  );
+}
+
+/** Precipitation chart — next 24h, Chart.js line with gradient fill */
+function PrecipChart({ hourlyPeriods, formatTime, header, chartRef, chartInstanceRef }) {
+  useEffect(() => {
+    if (!hourlyPeriods.length || !chartRef.current) return;
+    const labels = hourlyPeriods.map((p) => formatTime(p.startTime));
+    const data = hourlyPeriods.map((p) => p.probabilityOfPrecipitation?.value ?? 0);
+    const ctx = chartRef.current.getContext('2d');
+    const gradient = ctx.createLinearGradient(0, 0, 0, 120);
+    gradient.addColorStop(0, 'rgba(100, 180, 255, 0.4)');
+    gradient.addColorStop(1, 'rgba(100, 180, 255, 0)');
+    if (chartInstanceRef.current) chartInstanceRef.current.destroy();
+    chartInstanceRef.current = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data,
+          borderColor: 'rgba(100, 180, 255, 0.9)',
+          borderWidth: 2,
+          fill: true,
+          backgroundColor: gradient,
+          tension: 0.5,
+          pointRadius: 0,
+          pointHoverRadius: 4,
+        }],
+      },
+      options: {
+        animation: { duration: 1000 },
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 10 }, maxRotation: 0 },
+          },
+          y: { display: false, min: 0, max: 100 },
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (item) => `${item.raw}% chance`,
+            },
+          },
+        },
+      },
+    });
+    return () => {
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.destroy();
+        chartInstanceRef.current = null;
+      }
+    };
+  }, [hourlyPeriods, formatTime]);
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: 0.2 }}
+      className="glass-card"
+      style={{ padding: 16 }}
+    >
+      <p className="weather-label" style={{ margin: '0 0 12px', fontSize: 14, color: 'var(--text-secondary)' }}>{header}</p>
+      <div style={{ height: 90 }}>
+        <canvas ref={chartRef} />
+      </div>
+    </motion.section>
+  );
 }
