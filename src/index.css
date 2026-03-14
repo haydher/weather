@@ -1,0 +1,211 @@
+/* Dark glassmorphism design system — NWS Weather PWA */
+:root {
+  --bg-base: #0a0f1e;
+  --bg-card: rgba(255, 255, 255, 0.06);
+  --border-glass: rgba(255, 255, 255, 0.12);
+  --text-primary: #f0f4ff;
+  --text-secondary: rgba(255, 255, 255, 0.45);
+  --accent-rain: #4fa3e0;
+  --accent-sun: #f5c842;
+  --accent-clear: #7dd3fc;
+  --blur: blur(20px);
+  --font-display: 'Outfit', system-ui, sans-serif;
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --radius: 20px;
+  --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.2);
+  --shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-body);
+  color: var(--text-primary);
+  background: var(--bg-base);
+  min-height: 100svh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+}
+
+/* Noise overlay for depth */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+#root {
+  position: relative;
+  z-index: 0;
+  width: 100%;
+  max-width: 420px;
+  min-height: 100svh;
+  margin: 0 auto;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+  padding-top: max(12px, env(safe-area-inset-top));
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-x: hidden;
+}
+
+/* Glass card base */
+.glass-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  box-shadow: var(--shadow-card);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.glass-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-hover);
+}
+
+/* Subtle starfield for night (CSS-only) */
+.starfield {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.starfield::before,
+.starfield::after {
+  content: '';
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  box-shadow:
+    40px 60px 0 rgba(255, 255, 255, 0.3),
+    120px 180px 0 rgba(255, 255, 255, 0.25),
+    200px 40px 0 rgba(255, 255, 255, 0.35),
+    280px 140px 0 rgba(255, 255, 255, 0.2),
+    360px 80px 0 rgba(255, 255, 255, 0.3),
+    80px 220px 0 rgba(255, 255, 255, 0.2),
+    160px 260px 0 rgba(255, 255, 255, 0.25),
+    240px 100px 0 rgba(255, 255, 255, 0.2);
+  animation: twinkle 4s ease-in-out infinite;
+}
+
+.starfield::after {
+  left: 50%;
+  top: 30%;
+  animation-delay: 2s;
+  box-shadow:
+    20px 80px 0 rgba(255, 255, 255, 0.2),
+    100px 20px 0 rgba(255, 255, 255, 0.3),
+    180px 160px 0 rgba(255, 255, 255, 0.25),
+    260px 60px 0 rgba(255, 255, 255, 0.2),
+    340px 200px 0 rgba(255, 255, 255, 0.3);
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+/* Weather icon animations */
+@keyframes sunRotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes cloudDrift {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(6px); }
+}
+
+@keyframes rainFall {
+  0% { transform: translateY(-4px); opacity: 1; }
+  100% { transform: translateY(8px); opacity: 0.6; }
+}
+
+@keyframes snowDrift {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(2px, 4px); }
+  75% { transform: translate(-2px, 2px); }
+}
+
+@keyframes sunPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.9; transform: scale(1.05); }
+}
+
+@keyframes cloudBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.icon-sun-rays { animation: sunRotate 8s linear infinite; }
+.icon-cloud-drift { animation: cloudDrift 6s ease-in-out infinite; }
+.icon-rain { animation: rainFall 1s linear infinite; }
+.icon-snow { animation: snowDrift 3s ease-in-out infinite; }
+.icon-sun-pulse { animation: sunPulse 2s ease-in-out infinite; }
+.icon-cloud-bob { animation: cloudBob 3s ease-in-out infinite; }
+
+/* Shimmer skeleton */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.03) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.2s ease-in-out infinite;
+  border-radius: 8px;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Scrollbar hide for hourly strip */
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Touch-friendly minimum */
+button,
+[role="button"],
+a {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+input,
+select,
+textarea {
+  font-size: 16px; /* avoids zoom on focus on iOS */
+}
