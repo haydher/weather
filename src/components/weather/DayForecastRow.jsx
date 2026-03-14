@@ -58,7 +58,7 @@ export function DayForecastRow({ group, hourlyPeriods, expanded, onToggle, unitP
             >
               {dayHours.length > 0 && (
                 <div
-                  className="hide-scrollbar"
+                  className="hide-scrollbar ten-day-hourly-card"
                   style={{
                     display: "flex",
                     gap: 8,
@@ -67,7 +67,7 @@ export function DayForecastRow({ group, hourlyPeriods, expanded, onToggle, unitP
                     padding: "12px 16px 8px",
                   }}
                 >
-                  {dayHours.map((p) => {
+                  {dayHours.map((p, index) => {
                     const start = new Date(p.startTime);
                     const end = new Date(p.endTime);
                     const isNow = now >= start && now < end && start.toDateString() === now.toDateString();
@@ -79,6 +79,7 @@ export function DayForecastRow({ group, hourlyPeriods, expanded, onToggle, unitP
                         formatTime={formatTime}
                         isNow={isNow}
                         size="sm"
+                        index={index}
                       />
                     );
                   })}
