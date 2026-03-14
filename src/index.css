@@ -9,8 +9,8 @@
   --accent-sun: #f5c842;
   --accent-clear: #7dd3fc;
   --blur: blur(20px);
-  --font-display: 'Nunito', system-ui, sans-serif;
-  --font-body: 'Nunito Sans', system-ui, sans-serif;
+  --font-display: "Nunito", system-ui, sans-serif;
+  --font-body: "Nunito Sans", system-ui, sans-serif;
   --radius: 20px;
   --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.2);
   --shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.3);
@@ -47,7 +47,7 @@ body {
 
 /* Noise overlay for depth */
 body::before {
-  content: '';
+  content: "";
   position: fixed;
   inset: 0;
   pointer-events: none;
@@ -83,7 +83,7 @@ body::before {
   backdrop-filter: var(--blur);
   -webkit-backdrop-filter: var(--blur);
   box-shadow: var(--shadow-card);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  /* transition: transform 0.2s ease, box-shadow 0.2s ease; */
 }
 
 .glass-card:hover {
@@ -102,21 +102,16 @@ body::before {
 
 .starfield::before,
 .starfield::after {
-  content: '';
+  content: "";
   position: absolute;
   width: 2px;
   height: 2px;
   background: rgba(255, 255, 255, 0.4);
   border-radius: 50%;
-  box-shadow:
-    40px 60px 0 rgba(255, 255, 255, 0.3),
-    120px 180px 0 rgba(255, 255, 255, 0.25),
-    200px 40px 0 rgba(255, 255, 255, 0.35),
-    280px 140px 0 rgba(255, 255, 255, 0.2),
-    360px 80px 0 rgba(255, 255, 255, 0.3),
-    80px 220px 0 rgba(255, 255, 255, 0.2),
-    160px 260px 0 rgba(255, 255, 255, 0.25),
-    240px 100px 0 rgba(255, 255, 255, 0.2);
+  box-shadow: 40px 60px 0 rgba(255, 255, 255, 0.3), 120px 180px 0 rgba(255, 255, 255, 0.25),
+    200px 40px 0 rgba(255, 255, 255, 0.35), 280px 140px 0 rgba(255, 255, 255, 0.2),
+    360px 80px 0 rgba(255, 255, 255, 0.3), 80px 220px 0 rgba(255, 255, 255, 0.2),
+    160px 260px 0 rgba(255, 255, 255, 0.25), 240px 100px 0 rgba(255, 255, 255, 0.2);
   animation: twinkle 4s ease-in-out infinite;
 }
 
@@ -124,57 +119,105 @@ body::before {
   left: 50%;
   top: 30%;
   animation-delay: 2s;
-  box-shadow:
-    20px 80px 0 rgba(255, 255, 255, 0.2),
-    100px 20px 0 rgba(255, 255, 255, 0.3),
-    180px 160px 0 rgba(255, 255, 255, 0.25),
-    260px 60px 0 rgba(255, 255, 255, 0.2),
+  box-shadow: 20px 80px 0 rgba(255, 255, 255, 0.2), 100px 20px 0 rgba(255, 255, 255, 0.3),
+    180px 160px 0 rgba(255, 255, 255, 0.25), 260px 60px 0 rgba(255, 255, 255, 0.2),
     340px 200px 0 rgba(255, 255, 255, 0.3);
 }
 
 @keyframes twinkle {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 /* Weather icon animations */
 @keyframes sunRotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 @keyframes cloudDrift {
-  0%, 100% { transform: translateX(0); }
-  50% { transform: translateX(6px); }
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(6px);
+  }
 }
 
 @keyframes rainFall {
-  0% { transform: translateY(-4px); opacity: 1; }
-  100% { transform: translateY(8px); opacity: 0.6; }
+  0% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(8px);
+    opacity: 0.6;
+  }
 }
 
 @keyframes snowDrift {
-  0%, 100% { transform: translate(0, 0); }
-  25% { transform: translate(2px, 4px); }
-  75% { transform: translate(-2px, 2px); }
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(2px, 4px);
+  }
+  75% {
+    transform: translate(-2px, 2px);
+  }
 }
 
 @keyframes sunPulse {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.9; transform: scale(1.05); }
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.05);
+  }
 }
 
 @keyframes cloudBob {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-3px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
 }
 
-.icon-sun-rays { animation: sunRotate 8s linear infinite; }
-.icon-cloud-drift { animation: cloudDrift 6s ease-in-out infinite; }
-.icon-rain { animation: rainFall 1s linear infinite; }
-.icon-snow { animation: snowDrift 3s ease-in-out infinite; }
-.icon-sun-pulse { animation: sunPulse 2s ease-in-out infinite; }
-.icon-cloud-bob { animation: cloudBob 3s ease-in-out infinite; }
+.icon-sun-rays {
+  animation: sunRotate 8s linear infinite;
+}
+.icon-cloud-drift {
+  animation: cloudDrift 6s ease-in-out infinite;
+}
+.icon-rain {
+  animation: rainFall 1s linear infinite;
+}
+.icon-snow {
+  animation: snowDrift 3s ease-in-out infinite;
+}
+.icon-sun-pulse {
+  animation: sunPulse 2s ease-in-out infinite;
+}
+.icon-cloud-bob {
+  animation: cloudBob 3s ease-in-out infinite;
+}
 
 /* Shimmer skeleton */
 .shimmer {
@@ -190,8 +233,12 @@ body::before {
 }
 
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 /* Location detecting pulse */
@@ -200,8 +247,15 @@ body::before {
 }
 
 @keyframes searchPulse {
-  0%, 100% { opacity: 0.4; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.2); }
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
 }
 
 /* Scrollbar hide for hourly strip */
@@ -300,30 +354,42 @@ body::before {
 }
 
 .day-name {
-  flex: 0 0 48px;
+  min-width: 25%;
   font-size: 14px;
   font-weight: 400;
   font-family: var(--font-body);
 }
 
-.forecast-icon-precip {
+.forecast-icon-precip-container {
   flex: 1;
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
+  justify-content: end;
+}
+
+.forecast-icon-precip {
+  display: flex;
+  align-items: center;
+  justify-content: end;
+  margin-right: 16px;
   font-size: 12px;
   color: rgba(255, 255, 255, 0.5);
 }
 
+.forecast-icon-precip span {
+  text-align: end;
+  margin-right: 8px;
+}
+
 .forecast-temps {
-  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 4px;
   white-space: nowrap;
   font-size: 14px;
   font-family: var(--font-body);
+  width: 42%;
+  justify-content: end;
 }
 
 .forecast-temps .temp-high {
@@ -336,7 +402,7 @@ body::before {
 }
 
 .forecast-temps .temp-celsius {
-  font-size: 11px;
+  font-size: 12px;
   color: rgba(255, 255, 255, 0.35);
 }
 

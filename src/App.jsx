@@ -1,30 +1,24 @@
-import { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useLocation } from './hooks/useLocation.js';
-import { useGeocodeSearch } from './hooks/useGeocodeSearch.js';
-import { useNwsForecast } from './hooks/useNwsForecast.js';
-import { formatTime, formatDay } from './lib/formatters.js';
-import { getTimeGreeting } from './lib/weatherUtils.js';
-import { Starfield } from './components/layout/Starfield.jsx';
-import { SearchBar } from './components/search/SearchBar.jsx';
-import { ErrorBanner } from './components/ui/ErrorBanner.jsx';
-import { HeroCard } from './components/weather/HeroCard.jsx';
-import { PrecipChart } from './components/weather/PrecipChart.jsx';
-import { HourlyStrip } from './components/weather/HourlyStrip.jsx';
-import { DayForecastList } from './components/weather/DayForecastList.jsx';
-import { LiveMapSection } from './components/weather/LiveMapSection.jsx';
+import { useState, useEffect, useMemo } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useLocation } from "./hooks/useLocation.js";
+import { useGeocodeSearch } from "./hooks/useGeocodeSearch.js";
+import { useNwsForecast } from "./hooks/useNwsForecast.js";
+import { formatTime, formatDay } from "./lib/formatters.js";
+import { getTimeGreeting } from "./lib/weatherUtils.js";
+import { Starfield } from "./components/layout/Starfield.jsx";
+import { SearchBar } from "./components/search/SearchBar.jsx";
+import { ErrorBanner } from "./components/ui/ErrorBanner.jsx";
+import { HeroCard } from "./components/weather/HeroCard.jsx";
+import { PrecipChart } from "./components/weather/PrecipChart.jsx";
+import { HourlyStrip } from "./components/weather/HourlyStrip.jsx";
+import { DayForecastList } from "./components/weather/DayForecastList.jsx";
+import { LiveMapSection } from "./components/weather/LiveMapSection.jsx";
 
 export default function App() {
-  const [unitPrimary, setUnitPrimary] = useState('F');
+  const [unitPrimary, setUnitPrimary] = useState("F");
   const { selectedPlace, setSelectedPlace, locationDetecting } = useLocation();
   const search = useGeocodeSearch(setSelectedPlace);
-  const {
-    forecast,
-    forecastHourly,
-    status,
-    errorMessage,
-    retry,
-  } = useNwsForecast(selectedPlace);
+  const { forecast, forecastHourly, status, errorMessage, retry } = useNwsForecast(selectedPlace);
 
   // When geolocation fails or user is outside US, focus search so they can pick a place
   useEffect(() => {
@@ -44,10 +38,15 @@ export default function App() {
       return now >= start && now < end;
     }) || periods[0];
 
-  const todayDayPeriod = periods.find((p) => p.isDaytime && new Date(p.startTime).toDateString() === now.toDateString());
-  const todayNightPeriod = periods.find((p) => !p.isDaytime && new Date(p.startTime).toDateString() === now.toDateString());
+  const todayDayPeriod = periods.find(
+    (p) => p.isDaytime && new Date(p.startTime).toDateString() === now.toDateString()
+  );
+  const todayNightPeriod = periods.find(
+    (p) => !p.isDaytime && new Date(p.startTime).toDateString() === now.toDateString()
+  );
   const todayHigh = todayDayPeriod?.temperature ?? currentPeriod?.temperature;
-  const todayLow = todayNightPeriod?.temperature ?? periods.find((p) => !p.isDaytime)?.temperature ?? currentPeriod?.temperature;
+  const todayLow =
+    todayNightPeriod?.temperature ?? periods.find((p) => !p.isDaytime)?.temperature ?? currentPeriod?.temperature;
 
   const next24Hourly = useMemo(() => hourlyPeriods.slice(0, 24), [hourlyPeriods]);
   const precipPeak = useMemo(
@@ -61,7 +60,7 @@ export default function App() {
   const precipHeader =
     precipPeak && precipPeak.val >= 20
       ? `Rain expected at ${formatTime(precipPeak.period.startTime)}`
-      : 'Next 24 hours';
+      : "Next 24 hours";
 
   const dayGroups = useMemo(() => {
     const groups = [];
@@ -79,15 +78,15 @@ export default function App() {
   }, [periods]);
 
   const timeGreeting = getTimeGreeting(now, currentPeriod);
-  const heroLoading = (status === 'loading' || locationDetecting) && selectedPlace;
-  const heroSuccess = status === 'success' && currentPeriod && !locationDetecting;
+  const heroLoading = (status === "loading" || locationDetecting) && selectedPlace;
+  const heroSuccess = status === "success" && currentPeriod && !locationDetecting;
 
   return (
     <>
       <Starfield />
 
       <motion.div
-        style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+        style={{ display: "flex", flexDirection: "column", gap: 16 }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
@@ -107,13 +106,11 @@ export default function App() {
           searchInputRef={search.searchInputRef}
         />
 
-        {status === 'error' && <ErrorBanner message={errorMessage} onRetry={retry} />}
+        {status === "error" && <ErrorBanner message={errorMessage} onRetry={retry} />}
 
         {selectedPlace && (
           <AnimatePresence mode="wait">
-            {heroLoading && (
-              <HeroCard isLoading />
-            )}
+            {heroLoading && <HeroCard isLoading />}
             {heroSuccess && (
               <HeroCard
                 currentPeriod={currentPeriod}
@@ -127,22 +124,22 @@ export default function App() {
           </AnimatePresence>
         )}
 
-        {status === 'success' && next24Hourly.length > 0 && (
+        {status === "success" && next24Hourly.length > 0 && (
           <PrecipChart hourlyPeriods={next24Hourly} header={precipHeader} />
         )}
 
-        {status === 'success' && hourlyPeriods.length > 0 && (
+        {status === "success" && hourlyPeriods.length > 0 && (
           <HourlyStrip hourlyPeriods={hourlyPeriods} unitPrimary={unitPrimary} />
         )}
 
-        {status === 'success' && dayGroups.length > 0 && (
+        {status === "success" && dayGroups.length > 0 && (
           <DayForecastList dayGroups={dayGroups} hourlyPeriods={hourlyPeriods} unitPrimary={unitPrimary} />
         )}
 
-        {status === 'success' && selectedPlace && <LiveMapSection selectedPlace={selectedPlace} />}
+        {status === "success" && selectedPlace && <LiveMapSection selectedPlace={selectedPlace} />}
 
-        {!selectedPlace && !locationDetecting && status === 'idle' && (
-          <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 24 }}>
+        {!selectedPlace && !locationDetecting && status === "idle" && (
+          <p style={{ textAlign: "center", color: "var(--text-secondary)", padding: 24 }}>
             Search a US city to get started.
           </p>
         )}
