@@ -4,11 +4,11 @@ import { WeatherIcon } from "../ui/WeatherIcon.jsx";
 
 const sizeStyles = {
   sm: {
-    card: { flex: "0 0 60px", minWidth: 60, height: 56, padding: "6px 4px" },
+    card: { flex: "0 0 60px", minWidth: 65, height: 56, padding: "6px 4px" },
     time: { fontSize: 10 },
     temp: { fontSize: 13 },
     showPrecip: false,
-    iconSize: 20,
+    iconSize: 30,
   },
   md: {
     card: { flex: "0 0 72px", minWidth: 72, height: 120, padding: "10px 8px" },
@@ -42,7 +42,7 @@ export function HourlyCard({ period, unitPrimary, formatTime, isNow, size = "md"
         justifyContent: "center",
         border: "1px solid var(--border-glass)",
         borderRadius: "16px",
-        padding: "70px 8px",
+        padding: size === "sm" ? "40px 8px" : "70px 8px",
       }}
     >
       <div style={{ ...style.time, color: "var(--text-secondary)", marginBottom: size === "sm" ? 2 : 4 }}>

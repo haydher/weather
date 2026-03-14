@@ -136,7 +136,9 @@ export default function App() {
           <DayForecastList dayGroups={dayGroups} hourlyPeriods={hourlyPeriods} unitPrimary={unitPrimary} />
         )}
 
-        {status === "success" && selectedPlace && <LiveMapSection selectedPlace={selectedPlace} />}
+        {status === "success" && selectedPlace && (
+          <LiveMapSection selectedPlace={selectedPlace} unitPrimary={unitPrimary} />
+        )}
 
         {!selectedPlace && !locationDetecting && status === "idle" && (
           <p style={{ textAlign: "center", color: "var(--text-secondary)", padding: 24 }}>
