@@ -1,8 +1,26 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Chart, CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, registerables } from 'chart.js';
+import { Chart, CategoryScale, LinearScale, BarElement, BarController, Tooltip, registerables } from 'chart.js';
 
-Chart.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, ...registerables);
+Chart.register(CategoryScale, LinearScale, BarElement, BarController, Tooltip, ...registerables);
+
+/** US state full name → 2-letter abbreviation */
+const US_STATE_ABBR = {
+  alabama: 'AL', alaska: 'AK', arizona: 'AZ', arkansas: 'AR', california: 'CA', colorado: 'CO',
+  connecticut: 'CT', delaware: 'DE', florida: 'FL', georgia: 'GA', hawaii: 'HI', idaho: 'ID',
+  illinois: 'IL', indiana: 'IN', iowa: 'IA', kansas: 'KS', kentucky: 'KY', louisiana: 'LA',
+  maine: 'ME', maryland: 'MD', massachusetts: 'MA', michigan: 'MI', minnesota: 'MN', mississippi: 'MS',
+  missouri: 'MO', montana: 'MT', nebraska: 'NE', nevada: 'NV', 'new hampshire': 'NH', 'new jersey': 'NJ',
+  'new mexico': 'NM', 'new york': 'NY', 'north carolina': 'NC', 'north dakota': 'ND', ohio: 'OH',
+  oklahoma: 'OK', oregon: 'OR', pennsylvania: 'PA', 'rhode island': 'RI', 'south carolina': 'SC',
+  'south dakota': 'SD', tennessee: 'TN', texas: 'TX', utah: 'UT', vermont: 'VT', virginia: 'VA',
+  washington: 'WA', 'west virginia': 'WV', wisconsin: 'WI', wyoming: 'WY', 'district of columbia': 'DC',
+};
+function abbreviateState(stateName) {
+  if (!stateName) return '';
+  const key = String(stateName).toLowerCase().trim();
+  return US_STATE_ABBR[key] || (key.length <= 2 ? key.toUpperCase() : stateName);
+}
 
 const STORAGE_KEY = 'weather-location';
 const NOMINATIM_SEARCH = 'https://nominatim.openstreetmap.org/search';
@@ -34,22 +52,30 @@ function windDirectionToDegrees(dir) {
   return map[dir.toUpperCase()] ?? 0;
 }
 
-/** Map NWS shortForecast to Meteocons (Iconify) icon names */
-function shortForecastToMeteocon(shortForecast, isDaytime = true) {
-  if (!shortForecast) return 'meteocons:overcast-fill';
-  const s = shortForecast.toLowerCase();
-  if (s.includes('sunny')) return 'meteocons:clear-day-fill';
-  if (s.includes('clear')) return isDaytime ? 'meteocons:clear-day-fill' : 'meteocons:clear-night-fill';
-  if (s.includes('partly cloudy')) return isDaytime ? 'meteocons:partly-cloudy-day-fill' : 'meteocons:partly-cloudy-night-fill';
-  if (s.includes('mostly cloudy') || s.includes('cloudy') || s.includes('overcast')) return 'meteocons:overcast-fill';
-  if (s.includes('rain') && s.includes('thunder')) return 'meteocons:thunderstorms-rain-fill';
-  if (s.includes('thunder')) return 'meteocons:thunderstorms-rain-fill';
-  if (s.includes('rain')) return 'meteocons:rain-fill';
-  if (s.includes('showers') || s.includes('drizzle')) return 'meteocons:drizzle-fill';
-  if (s.includes('snow')) return 'meteocons:snow-fill';
-  if (s.includes('fog') || s.includes('mist')) return 'meteocons:fog-fill';
-  if (s.includes('wind')) return 'meteocons:wind-fill';
-  return 'meteocons:overcast-fill';
+/** Map NWS shortForecast to Basmilius/Meteocons icon filename (svg-static) */
+function getWeatherIcon(shortForecast, isDaytime = true) {
+  if (!shortForecast) return 'overcast';
+  const f = shortForecast.toLowerCase();
+  if (f.includes('thunder')) return 'thunderstorms-rain';
+  if (f.includes('snow')) return 'snow';
+  if (f.includes('sleet') || f.includes('ice')) return 'sleet';
+  if (f.includes('rain') || f.includes('shower')) return isDaytime ? 'partly-cloudy-day-rain' : 'partly-cloudy-night-rain';
+  if (f.includes('drizzle')) return 'drizzle';
+  if (f.includes('fog') || f.includes('mist')) return 'fog';
+  if (f.includes('wind')) return 'wind';
+  if (f.includes('mostly cloudy') || f.includes('overcast')) return 'cloudy';
+  if (f.includes('partly cloudy') || f.includes('partly sunny')) return isDaytime ? 'partly-cloudy-day' : 'partly-cloudy-night';
+  if (f.includes('cloudy')) return 'cloudy';
+  if (f.includes('clear') || f.includes('sunny')) return isDaytime ? 'clear-day' : 'clear-night';
+  return isDaytime ? 'partly-cloudy-day' : 'partly-cloudy-night';
+}
+
+/* Basmilius Weather Icons via jsDelivr GitHub CDN (darksky set: clear-day, rain, thunderstorm, etc.) */
+const WEATHER_ICONS_BASE = 'https://cdn.jsdelivr.net/gh/basmilius/weather-icons@2.0.0/production/fill/darksky';
+const WEATHER_ICONS_FALLBACK = 'https://cdn.jsdelivr.net/gh/basmilius/weather-icons@2.0.0/production/fill/darksky';
+function weatherIconUrl(name) {
+  const file = name === 'thunderstorms-rain' ? 'thunderstorm' : name;
+  return `${WEATHER_ICONS_BASE}/${file}.svg`;
 }
 
 function getGradientForCondition(shortForecast, isDaytime) {
@@ -89,6 +115,7 @@ export default function App() {
   const dropdownRef = useRef(null);
   const chartRef = useRef(null);
   const chartInstanceRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   const loadSavedPlace = useCallback(() => {
     try {
@@ -107,10 +134,10 @@ export default function App() {
     const data = await res.json();
     const addr = data?.address || {};
     const city = addr.city || addr.town || addr.village || addr.municipality || '';
-    const state = addr.state || '';
-    const country = addr.country_code?.toUpperCase() || '';
-    const parts = [city, state].filter(Boolean);
-    const displayName = parts.length ? `${parts.join(', ')}` : data?.display_name || `${lat.toFixed(2)}, ${lon.toFixed(2)}`;
+    const stateAbbr = addr.state_code || abbreviateState(addr.state) || '';
+    const displayName = [city, stateAbbr].filter(Boolean).length
+      ? `${city}, ${stateAbbr}`.trim()
+      : (data?.display_name || `${lat.toFixed(2)}, ${lon.toFixed(2)}`);
     return { lat, lon, displayName };
   }, []);
 
@@ -160,6 +187,12 @@ export default function App() {
     }
     navigator.geolocation.getCurrentPosition(onSuccess, onFail, { timeout: 8000, maximumAge: 300000 });
   }, [loadSavedPlace, reverseGeocode]);
+
+  useEffect(() => {
+    if (searchFocused && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [searchFocused]);
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -253,11 +286,20 @@ export default function App() {
     return () => { cancelled = true; };
   }, [selectedPlace]);
 
+  const formatPlaceDisplay = useCallback((place) => {
+    if (!place) return '';
+    const addr = place.address || {};
+    const city = addr.city || addr.town || addr.village || addr.municipality || place.name || '';
+    const stateAbbr = addr.state_code || abbreviateState(addr.state || place.state) || 'US';
+    return [city, stateAbbr].filter(Boolean).length ? `${city}, ${stateAbbr}`.trim() : (place.display_name || '');
+  }, []);
+
   const handleSelectPlace = useCallback((place) => {
+    const displayName = formatPlaceDisplay(place) || place.display_name || `${place.name || ''}, ${place.state || 'US'}`.trim();
     const item = {
       lat: parseFloat(place.lat),
       lon: parseFloat(place.lon),
-      displayName: place.display_name || `${place.name || ''}, ${place.state || 'US'}`.trim(),
+      displayName,
     };
     setSelectedPlace(item);
     try {
@@ -267,7 +309,7 @@ export default function App() {
     setGeocodeResults([]);
     setDropdownOpen(false);
     setSearchFocused(false);
-  }, []);
+  }, [formatPlaceDisplay]);
 
   const refresh = useCallback(() => {
     if (!selectedPlace) return;
@@ -338,7 +380,7 @@ export default function App() {
   const todayHigh = todayDayPeriod?.temperature ?? currentPeriod?.temperature;
   const todayLow = todayNightPeriod?.temperature ?? periods.find((p) => !p.isDaytime)?.temperature ?? currentPeriod?.temperature;
 
-  const next24Hourly = hourlyPeriods.slice(0, 24);
+  const next24Hourly = useMemo(() => hourlyPeriods.slice(0, 24), [hourlyPeriods]);
   const precipPeak = next24Hourly.reduce((best, p) => {
     const val = p.probabilityOfPrecipitation?.value ?? 0;
     return val > (best?.val ?? 0) ? { period: p, val } : best;
@@ -378,10 +420,10 @@ export default function App() {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
       >
-        {/* Search bar — pill, glassmorphism, pin + city left / search right */}
+        {/* Search bar — single pill, label + input same container, opacity transition only */}
         <div ref={dropdownRef} style={{ position: 'relative' }}>
-          <motion.div
-            className="glass-card"
+          <div
+            className="glass-card search-pill"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -390,47 +432,30 @@ export default function App() {
               minHeight: 48,
               border: '1px solid var(--border-glass)',
               background: 'rgba(10, 15, 30, 0.7)',
+              position: 'relative',
             }}
-            initial={false}
-            animate={{ opacity: 1 }}
           >
-            {searchFocused ? (
-              <input
-                type="text"
-                placeholder="Search a US city..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                onBlur={() => setTimeout(() => { if (!dropdownOpen) setSearchFocused(false); }, 180)}
-                autoFocus
+            <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
+              <label
+                className="search-label"
+                htmlFor="city-search"
                 style={{
-                  flex: 1,
-                  border: 'none',
-                  background: 'transparent',
-                  color: 'var(--text-primary)',
-                  fontFamily: 'var(--font-body)',
-                  fontSize: 15,
-                  outline: 'none',
-                  letterSpacing: '0.04em',
-                }}
-              />
-            ) : (
-              <button
-                type="button"
-                onClick={() => setSearchFocused(true)}
-                style={{
-                  flex: 1,
+                  position: 'absolute',
+                  inset: 0,
                   display: 'flex',
                   alignItems: 'center',
                   gap: 8,
-                  border: 'none',
-                  background: 'transparent',
+                  margin: 0,
+                  cursor: 'pointer',
                   color: selectedPlace ? 'var(--text-primary)' : 'var(--text-secondary)',
                   fontFamily: 'var(--font-body)',
                   fontSize: 15,
-                  cursor: 'pointer',
-                  textAlign: 'left',
                   letterSpacing: '0.04em',
+                  opacity: searchFocused ? 0 : 1,
+                  pointerEvents: searchFocused ? 'none' : 'auto',
+                  transition: 'opacity 150ms ease',
                 }}
+                onClick={() => setSearchFocused(true)}
               >
                 <PinIcon />
                 {locationDetecting ? (
@@ -443,8 +468,37 @@ export default function App() {
                 ) : (
                   'Search a US city…'
                 )}
-              </button>
-            )}
+              </label>
+              <input
+                ref={searchInputRef}
+                id="city-search"
+                type="text"
+                placeholder="Search a US city..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setTimeout(() => { if (!dropdownOpen) setSearchFocused(false); }, 180)}
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: '100%',
+                  border: 'none',
+                  background: 'transparent',
+                  color: 'var(--text-primary)',
+                  fontFamily: 'var(--font-body)',
+                  fontSize: 15,
+                  outline: 'none',
+                  letterSpacing: '0.04em',
+                  opacity: searchFocused ? 1 : 0,
+                  pointerEvents: searchFocused ? 'auto' : 'none',
+                  transition: 'opacity 150ms ease',
+                }}
+                aria-label="Search a US city"
+              />
+            </div>
             <button
               type="button"
               onClick={() => setSearchFocused(true)}
@@ -459,12 +513,13 @@ export default function App() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
+                flexShrink: 0,
               }}
               aria-label="Search"
             >
               <SearchIcon />
             </button>
-          </motion.div>
+          </div>
           <AnimatePresence>
             {dropdownOpen && geocodeResults.length > 0 && (
               <motion.ul
@@ -503,7 +558,7 @@ export default function App() {
                       fontSize: 14,
                     }}
                   >
-                    {r.display_name}
+                    {formatPlaceDisplay(r) || r.display_name}
                   </li>
                 ))}
               </motion.ul>
@@ -570,60 +625,57 @@ export default function App() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.3 }}
-                className="glass-card"
+                className="glass-card hero-card"
                 style={{
-                  padding: 24,
+                  padding: 20,
                   background: getGradientForCondition(currentPeriod.shortForecast, currentPeriod.isDaytime),
                   backgroundSize: '200% 200%',
                   transition: 'background 2s ease',
-                  position: 'relative',
                 }}
               >
-                <p style={{ margin: '0 0 12px', fontSize: 13, fontStyle: 'italic', opacity: 0.6, fontFamily: 'var(--font-body)' }}>
+                <p className="hero-greeting" style={{ margin: '0 0 12px', fontSize: 13, fontStyle: 'italic', opacity: 0.6, fontFamily: 'var(--font-body)' }}>
                   {timeGreeting()}
                 </p>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-                  <div>
-                    <TemperatureDisplay value={currentPeriod.temperature} unitPrimary={unitPrimary} />
-                    <p style={{ margin: '8px 0 0', fontSize: 18, color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}>
-                      {currentPeriod.shortForecast}
-                    </p>
-                    <p style={{ margin: '6px 0 0', fontSize: 14, color: 'var(--text-secondary)' }}>
-                      Feels like {unitPrimary === 'F' ? currentPeriod.temperature : fToC(currentPeriod.temperature)}°{unitPrimary} ({unitPrimary === 'F' ? fToC(currentPeriod.temperature) : currentPeriod.temperature}°{unitPrimary === 'F' ? 'C' : 'F'})
-                    </p>
-                    <p style={{ margin: '4px 0 0', fontSize: 14, color: 'var(--text-secondary)' }}>
-                      H {todayHigh}° / L {todayLow}°
-                    </p>
-                    {currentPeriod.windSpeed && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
-                        <WindArrow direction={currentPeriod.windDirection} />
-                        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{currentPeriod.windSpeed}</span>
-                      </div>
-                    )}
-                  </div>
-                  <MeteoconIcon name={shortForecastToMeteocon(currentPeriod.shortForecast, currentPeriod.isDaytime)} size={96} />
+                <div className="hero-left">
+                  <TemperatureDisplay value={currentPeriod.temperature} unitPrimary={unitPrimary} />
+                  <p style={{ margin: '8px 0 0', fontSize: 18, color: 'var(--text-primary)', fontFamily: 'var(--font-body)' }}>
+                    {currentPeriod.shortForecast}
+                  </p>
+                  <p style={{ margin: '6px 0 0', fontSize: 14, color: 'var(--text-secondary)' }}>
+                    Feels like {unitPrimary === 'F' ? currentPeriod.temperature : fToC(currentPeriod.temperature)}°{unitPrimary} ({unitPrimary === 'F' ? fToC(currentPeriod.temperature) : currentPeriod.temperature}°{unitPrimary === 'F' ? 'C' : 'F'})
+                  </p>
+                  <p style={{ margin: '4px 0 0', fontSize: 14, color: 'var(--text-secondary)' }}>
+                    H {todayHigh}° / L {todayLow}°
+                  </p>
                 </div>
-                <div style={{ position: 'absolute', bottom: 16, right: 16 }}>
-                  <button
-                    type="button"
-                    onClick={() => setUnitPrimary((u) => (u === 'F' ? 'C' : 'F'))}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: 9999,
-                      border: '1px solid var(--border-glass)',
-                      background: 'rgba(255,255,255,0.08)',
-                      color: 'var(--text-primary)',
-                      fontFamily: 'var(--font-body)',
-                      fontSize: 12,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      gap: 4,
-                    }}
-                  >
-                    <span style={{ opacity: unitPrimary === 'F' ? 1 : 0.45 }}>°F</span>
-                    <span style={{ opacity: 0.35 }}>|</span>
-                    <span style={{ opacity: unitPrimary === 'C' ? 1 : 0.45 }}>°C</span>
-                  </button>
+                <div className="hero-icon">
+                  <WeatherIcon shortForecast={currentPeriod.shortForecast} isDaytime={currentPeriod.isDaytime} size={96} alt={currentPeriod.shortForecast} />
+                </div>
+                <div className="hero-bottom-row">
+                  {currentPeriod.windSpeed ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <WindArrow direction={currentPeriod.windDirection} />
+                      <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{currentPeriod.windSpeed}</span>
+                    </div>
+                  ) : (
+                    <span />
+                  )}
+                  <div className="unit-toggle">
+                    <button
+                      type="button"
+                      className={unitPrimary === 'F' ? 'active' : 'inactive'}
+                      onClick={() => setUnitPrimary('F')}
+                    >
+                      °F
+                    </button>
+                    <button
+                      type="button"
+                      className={unitPrimary === 'C' ? 'active' : 'inactive'}
+                      onClick={() => setUnitPrimary('C')}
+                    >
+                      °C
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -683,7 +735,7 @@ export default function App() {
                     }}
                   >
                     <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 4 }}>{isNow ? 'Now' : formatTime(p.startTime)}</div>
-                    <MeteoconIcon name={shortForecastToMeteocon(p.shortForecast, p.isDaytime)} size={32} />
+                    <WeatherIcon shortForecast={p.shortForecast} isDaytime={p.isDaytime} size={32} />
                     <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 300 }}>{unitPrimary === 'F' ? p.temperature : fToC(p.temperature)}°{unitPrimary}</div>
                     <div style={{ fontSize: 11, opacity: 0.45 }}>{fToC(p.temperature)}°C</div>
                     <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{p.probabilityOfPrecipitation?.value ?? 0}%</div>
@@ -702,7 +754,7 @@ export default function App() {
             transition={{ delay: 0.4 }}
           >
             <h2 className="weather-label" style={{ margin: '0 0 12px', fontFamily: 'var(--font-display)', fontSize: 18 }}>10-Day Forecast</h2>
-            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' }} className="forecast-list">
               {dayGroups.map((group, idx) => {
                 const high = group.dayPeriod?.temperature ?? group.nightPeriod?.temperature;
                 const low = group.nightPeriod?.temperature ?? group.dayPeriod?.temperature;
@@ -711,6 +763,7 @@ export default function App() {
                 const wind = group.dayPeriod?.windSpeed || group.nightPeriod?.windSpeed || '';
                 const windDir = group.dayPeriod?.windDirection || group.nightPeriod?.windDirection || '';
                 const isExpanded = expandedDayIndex === idx;
+                const shortForecast = group.dayPeriod?.shortForecast || group.nightPeriod?.shortForecast;
                 return (
                   <motion.li
                     key={group.day}
@@ -720,19 +773,21 @@ export default function App() {
                   >
                     <motion.div
                       className="glass-card"
-                      style={{ padding: '14px 16px', overflow: 'hidden', cursor: 'pointer' }}
+                      style={{ overflow: 'hidden', cursor: 'pointer' }}
                       onClick={() => setExpandedDayIndex(isExpanded ? null : idx)}
                       layout
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
-                        <span style={{ flex: 1, fontFamily: 'var(--font-body)', fontSize: 15, fontWeight: 400, minWidth: 0 }}>{group.name}</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 0 }}>
-                          <MeteoconIcon name={shortForecastToMeteocon(group.dayPeriod?.shortForecast || group.nightPeriod?.shortForecast, true)} size={28} />
-                          <span style={{ fontSize: 13, color: 'var(--text-secondary)', minWidth: 28 }}>{precip}%</span>
+                      <div className="forecast-row">
+                        <span className="day-name">{group.name}</span>
+                        <div className="forecast-icon-precip">
+                          <WeatherIcon shortForecast={shortForecast} isDaytime size={28} alt="" />
+                          <span className="precip-pct">{precip}%</span>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 0 }}>
-                          <span style={{ fontFamily: 'var(--font-body)', fontWeight: 600 }}>H {high}° / L {low}°</span>
-                          <span style={{ fontSize: 11, opacity: 0.45 }}>({fToC(high)}°/{fToC(low)}°)</span>
+                        <div className="forecast-temps">
+                          <span className="temp-high">H {high}°</span>
+                          <span className="temp-divider">/</span>
+                          <span className="temp-low">L {low}°</span>
+                          <span className="temp-celsius">({fToC(high)}°/{fToC(low)}°)</span>
                         </div>
                       </div>
                       <AnimatePresence>
@@ -744,9 +799,9 @@ export default function App() {
                             transition={{ duration: 0.25, ease: 'easeInOut' }}
                             style={{ overflow: 'hidden' }}
                           >
-                            <p style={{ margin: '12px 0 0', fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{detailed}</p>
+                            <p style={{ margin: '0 16px 12px', fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{detailed}</p>
                             {(wind || windDir) && (
-                              <p style={{ margin: '8px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>Wind: {wind} {windDir}</p>
+                              <p style={{ margin: '0 16px 12px', fontSize: 13, color: 'var(--text-secondary)' }}>Wind: {wind} {windDir}</p>
                             )}
                           </motion.div>
                         )}
@@ -878,61 +933,106 @@ function SearchIcon() {
   );
 }
 
-/** Meteocons via Iconify — use icon name e.g. meteocons:rain-fill */
-function MeteoconIcon({ name, size = 32 }) {
+/** Weather icon via Basmilius Meteocons CDN (img tag) */
+function WeatherIcon({ shortForecast, isDaytime = true, size = 32, alt }) {
+  const name = getWeatherIcon(shortForecast, isDaytime);
+  const src = weatherIconUrl(name);
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: size, height: size }}>
-      {/* eslint-disable-next-line react/no-unknown-property */}
-      <iconify-icon icon={name} width={size} height={size} style={{ color: 'inherit' }} />
-    </span>
+    <img
+      src={src}
+      width={size}
+      height={size}
+      alt={alt || shortForecast || 'Weather'}
+      style={{ objectFit: 'contain', display: 'block' }}
+      onError={(e) => {
+        const t = e.target;
+        if (t.dataset.fallback) {
+          t.style.opacity = '0';
+          return;
+        }
+        t.dataset.fallback = '1';
+        const file = name === 'thunderstorms-rain' ? 'thunderstorm' : name;
+        t.src = `${WEATHER_ICONS_FALLBACK}/${file}.svg`;
+      }}
+    />
   );
 }
 
-/** Precipitation chart — next 24h, Chart.js line with gradient fill */
+/** Precipitation chart — next 24h, Chart.js bar chart, only re-init when data changes */
 function PrecipChart({ hourlyPeriods, formatTime, header, chartRef, chartInstanceRef }) {
+  const precipData = useMemo(
+    () => hourlyPeriods.map((p) => p.probabilityOfPrecipitation?.value ?? 0),
+    [hourlyPeriods],
+  );
+  const hourlyLabels = useMemo(
+    () => hourlyPeriods.map((p) => formatTime(p.startTime)),
+    [hourlyPeriods, formatTime],
+  );
+
   useEffect(() => {
-    if (!hourlyPeriods.length || !chartRef.current) return;
-    const labels = hourlyPeriods.map((p) => formatTime(p.startTime));
-    const data = hourlyPeriods.map((p) => p.probabilityOfPrecipitation?.value ?? 0);
+    if (!hourlyLabels.length || !precipData.length || !chartRef.current) return;
+    if (chartInstanceRef.current) {
+      chartInstanceRef.current.destroy();
+      chartInstanceRef.current = null;
+    }
     const ctx = chartRef.current.getContext('2d');
-    const gradient = ctx.createLinearGradient(0, 0, 0, 120);
-    gradient.addColorStop(0, 'rgba(100, 180, 255, 0.4)');
-    gradient.addColorStop(1, 'rgba(100, 180, 255, 0)');
-    if (chartInstanceRef.current) chartInstanceRef.current.destroy();
     chartInstanceRef.current = new Chart(ctx, {
-      type: 'line',
+      type: 'bar',
       data: {
-        labels,
+        labels: hourlyLabels,
         datasets: [{
-          data,
-          borderColor: 'rgba(100, 180, 255, 0.9)',
-          borderWidth: 2,
-          fill: true,
-          backgroundColor: gradient,
-          tension: 0.5,
-          pointRadius: 0,
-          pointHoverRadius: 4,
+          data: precipData,
+          backgroundColor: (ctx) => {
+            const value = ctx.raw;
+            return `rgba(100, 180, 255, ${0.2 + (value / 100) * 0.7})`;
+          },
+          borderColor: 'rgba(120, 200, 255, 0.6)',
+          borderWidth: 0,
+          borderRadius: 4,
+          borderSkipped: false,
         }],
       },
       options: {
-        animation: { duration: 1000 },
-        responsive: true,
-        maintainAspectRatio: false,
+        animation: {
+          delay: (ctx) => ctx.dataIndex * 20,
+          duration: 600,
+          easing: 'easeOutQuart',
+        },
         scales: {
           x: {
             grid: { display: false },
-            ticks: { color: 'rgba(255,255,255,0.4)', font: { size: 10 }, maxRotation: 0 },
+            ticks: {
+              color: 'rgba(255,255,255,0.35)',
+              font: { size: 10, family: 'Nunito Sans' },
+              maxRotation: 0,
+              autoSkip: true,
+              maxTicksLimit: 8,
+            },
+            border: { display: false },
           },
-          y: { display: false, min: 0, max: 100 },
+          y: {
+            display: false,
+            min: 0,
+            max: 100,
+          },
         },
         plugins: {
           legend: { display: false },
           tooltip: {
             callbacks: {
-              label: (item) => `${item.raw}% chance`,
+              label: (ctx) => `${ctx.raw}% chance`,
             },
+            backgroundColor: 'rgba(10, 20, 40, 0.85)',
+            titleColor: 'rgba(255,255,255,0.7)',
+            bodyColor: '#fff',
+            padding: 8,
+            cornerRadius: 8,
           },
         },
+        responsive: true,
+        maintainAspectRatio: false,
+        barPercentage: 0.6,
+        categoryPercentage: 0.8,
       },
     });
     return () => {
@@ -941,7 +1041,8 @@ function PrecipChart({ hourlyPeriods, formatTime, header, chartRef, chartInstanc
         chartInstanceRef.current = null;
       }
     };
-  }, [hourlyPeriods, formatTime]);
+  }, [hourlyLabels, precipData]);
+
   return (
     <motion.section
       initial={{ opacity: 0, y: 10 }}
@@ -951,7 +1052,7 @@ function PrecipChart({ hourlyPeriods, formatTime, header, chartRef, chartInstanc
       style={{ padding: 16 }}
     >
       <p className="weather-label" style={{ margin: '0 0 12px', fontSize: 14, color: 'var(--text-secondary)' }}>{header}</p>
-      <div style={{ height: 90 }}>
+      <div style={{ height: 100 }}>
         <canvas ref={chartRef} />
       </div>
     </motion.section>

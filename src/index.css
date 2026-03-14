@@ -61,6 +61,7 @@ body::before {
   z-index: 0;
   width: 100%;
   max-width: 420px;
+  min-width: 360px;
   min-height: 100svh;
   margin: 0 auto;
   padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
@@ -211,6 +212,127 @@ body::before {
 
 .hide-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* Hero card — grid layout: left column content, icon top-right, bottom row wind + toggle */
+.hero-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 0;
+  padding: 20px;
+}
+
+.hero-greeting {
+  grid-column: 1 / -1;
+}
+
+.hero-left {
+  grid-column: 1;
+}
+
+.hero-icon {
+  grid-column: 2;
+  align-self: start;
+  margin-top: 8px;
+}
+
+.hero-bottom-row {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+}
+
+/* °F | °C toggle — pill, bottom-right of hero */
+.unit-toggle {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  padding: 4px;
+  gap: 2px;
+  margin: 0 16px 16px 0;
+}
+
+.unit-toggle button {
+  padding: 5px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: background 200ms ease, color 200ms ease;
+  font-family: var(--font-body);
+  min-height: unset;
+  min-width: unset;
+}
+
+.unit-toggle button.active {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+.unit-toggle button.inactive {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* 10-day forecast row — single row flex, no wrap */
+.forecast-row {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  gap: 12px;
+  min-height: 52px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.forecast-row:last-child {
+  border-bottom: none;
+}
+
+.day-name {
+  flex: 0 0 48px;
+  font-size: 14px;
+  font-weight: 400;
+  font-family: var(--font-body);
+}
+
+.forecast-icon-precip {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.forecast-temps {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  font-size: 14px;
+  font-family: var(--font-body);
+}
+
+.forecast-temps .temp-high {
+  font-weight: 600;
+}
+
+.forecast-temps .temp-low {
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.forecast-temps .temp-celsius {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
 }
 
 /* Touch-friendly minimum */
