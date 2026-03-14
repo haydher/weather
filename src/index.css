@@ -280,6 +280,11 @@ body::before {
   color: rgba(255, 255, 255, 0.4);
 }
 
+/* Search pill — never clip so placeholder/input text is fully visible */
+.search-pill {
+  overflow: visible;
+}
+
 /* 10-day forecast row — single row flex, no wrap */
 .forecast-row {
   display: flex;

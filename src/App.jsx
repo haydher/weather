@@ -433,9 +433,27 @@ export default function App() {
               border: '1px solid var(--border-glass)',
               background: 'rgba(10, 15, 30, 0.7)',
               position: 'relative',
+              overflow: 'visible',
             }}
           >
-            <div style={{ flex: 1, position: 'relative', minWidth: 0 }}>
+            <div style={{ flex: 1, position: 'relative', minWidth: 0, overflow: 'visible' }}>
+              <span
+                aria-hidden
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  width: 18,
+                  height: 18,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  pointerEvents: 'none',
+                }}
+              >
+                <PinIcon />
+              </span>
               <label
                 className="search-label"
                 htmlFor="city-search"
@@ -444,7 +462,7 @@ export default function App() {
                   inset: 0,
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 8,
+                  paddingLeft: 26,
                   margin: 0,
                   cursor: 'pointer',
                   color: selectedPlace ? 'var(--text-primary)' : 'var(--text-secondary)',
@@ -457,7 +475,6 @@ export default function App() {
                 }}
                 onClick={() => setSearchFocused(true)}
               >
-                <PinIcon />
                 {locationDetecting ? (
                   <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     <span className="search-pulse" style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--accent-clear)' }} />
@@ -485,6 +502,8 @@ export default function App() {
                   top: 0,
                   bottom: 0,
                   width: '100%',
+                  boxSizing: 'border-box',
+                  paddingLeft: 26,
                   border: 'none',
                   background: 'transparent',
                   color: 'var(--text-primary)',
@@ -712,7 +731,9 @@ export default function App() {
               }}
             >
               {hourlyPeriods.slice(0, 24).map((p, i) => {
-                const isNow = now >= new Date(p.startTime) && now < new Date(p.endTime);
+                const start = new Date(p.startTime);
+                const end = new Date(p.endTime);
+                const isNow = (now >= start && now < end) && start.toDateString() === now.toDateString();
                 return (
                   <motion.div
                     key={p.startTime}
@@ -752,6 +773,7 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
+            style={{ paddingBottom: 32 }}
           >
             <h2 className="weather-label" style={{ margin: '0 0 12px', fontFamily: 'var(--font-display)', fontSize: 18 }}>10-Day Forecast</h2>
             <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column' }} className="forecast-list">
@@ -770,6 +792,7 @@ export default function App() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.4 + idx * 0.06, duration: 0.35 }}
+                    style={{ marginBottom: idx === dayGroups.length - 1 ? 16 : 0 }}
                   >
                     <motion.div
                       className="glass-card"
@@ -799,6 +822,50 @@ export default function App() {
                             transition={{ duration: 0.25, ease: 'easeInOut' }}
                             style={{ overflow: 'hidden' }}
                           >
+                            {(() => {
+                              const dayHours = hourlyPeriods.filter((p) => new Date(p.startTime).toDateString() === group.day);
+                              return dayHours.length > 0 ? (
+                                <div
+                                  className="hide-scrollbar"
+                                  style={{
+                                    display: 'flex',
+                                    gap: 8,
+                                    overflowX: 'auto',
+                                    scrollSnapType: 'x mandatory',
+                                    padding: '12px 16px 8px',
+                                  }}
+                                >
+                                  {dayHours.map((p) => {
+                                    const start = new Date(p.startTime);
+                                    const end = new Date(p.endTime);
+                                    const isNow = (now >= start && now < end) && start.toDateString() === now.toDateString();
+                                    return (
+                                      <div
+                                        key={p.startTime}
+                                        className="glass-card"
+                                        style={{
+                                          flex: '0 0 60px',
+                                          minWidth: 60,
+                                          height: 56,
+                                          scrollSnapAlign: 'start',
+                                          padding: '6px 4px',
+                                          display: 'flex',
+                                          flexDirection: 'column',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          border: '1px solid var(--border-glass)',
+                                          boxShadow: isNow ? '0 0 0 1.5px rgba(100,180,255,0.8)' : undefined,
+                                        }}
+                                      >
+                                        <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 2 }}>{isNow ? 'Now' : formatTime(p.startTime)}</div>
+                                        <WeatherIcon shortForecast={p.shortForecast} isDaytime={p.isDaytime} size={20} />
+                                        <div style={{ fontFamily: 'var(--font-display)', fontSize: 13, fontWeight: 300 }}>{unitPrimary === 'F' ? p.temperature : fToC(p.temperature)}°{unitPrimary}</div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : null;
+                            })()}
                             <p style={{ margin: '0 16px 12px', fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>{detailed}</p>
                             {(wind || windDir) && (
                               <p style={{ margin: '0 16px 12px', fontSize: 13, color: 'var(--text-secondary)' }}>Wind: {wind} {windDir}</p>
