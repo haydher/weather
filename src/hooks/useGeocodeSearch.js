@@ -1,17 +1,20 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { DEBOUNCE_MS, STORAGE_KEY, abbreviateState } from '../lib/constants.js';
-import { searchPlaces } from '../lib/nominatim.js';
+import { useState, useEffect, useCallback, useRef } from "react";
+import { DEBOUNCE_MS, STORAGE_KEY, abbreviateState } from "../lib/constants.js";
+import { searchPlaces } from "../lib/nominatim.js";
 
 function formatPlaceDisplay(place) {
-  if (!place) return '';
+  console.log(place);
+  if (!place) return "";
   const addr = place.address || {};
-  const city = addr.city || addr.town || addr.village || addr.municipality || place.name || '';
-  const stateAbbr = addr.state_code || abbreviateState(addr.state || place.state) || 'US';
-  return [city, stateAbbr].filter(Boolean).length ? `${city}, ${stateAbbr}`.trim() : (place.display_name || '');
+  const city = addr.city || addr.town || addr.village || addr.municipality || place.name || "";
+  const stateAbbr = addr.state_code || abbreviateState(addr.state || place.state) || "US";
+  const result = [city, stateAbbr].filter(Boolean).length ? `${city}, ${stateAbbr}`.trim() : place.display_name || "";
+  console.log(result);
+  return result;
 }
 
 export function useGeocodeSearch(setSelectedPlace) {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [geocodeResults, setGeocodeResults] = useState([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -31,8 +34,8 @@ export function useGeocodeSearch(setSelectedPlace) {
         setDropdownOpen(false);
       }
     }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
@@ -59,7 +62,8 @@ export function useGeocodeSearch(setSelectedPlace) {
 
   const handleSelectPlace = useCallback(
     (place) => {
-      const displayName = formatPlaceDisplay(place) || place.display_name || `${place.name || ''}, ${place.state || 'US'}`.trim();
+      const displayName =
+        formatPlaceDisplay(place) || place.display_name || `${place.name || ""}, ${place.state || "US"}`.trim();
       const item = {
         lat: parseFloat(place.lat),
         lon: parseFloat(place.lon),
@@ -69,7 +73,7 @@ export function useGeocodeSearch(setSelectedPlace) {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(item));
       } catch (_) {}
-      setQuery('');
+      setQuery("");
       setGeocodeResults([]);
       setDropdownOpen(false);
       setSearchFocused(false);

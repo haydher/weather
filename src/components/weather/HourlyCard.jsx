@@ -4,17 +4,15 @@ import { WeatherIcon } from "../ui/WeatherIcon.jsx";
 
 const sizeStyles = {
   sm: {
-    card: { flex: "0 0 60px", minWidth: 65, height: 56, padding: "6px 4px" },
+    card: { flex: "0 0 60px", minWidth: 65, height: 56 },
     time: { fontSize: 10 },
     temp: { fontSize: 13 },
-    showPrecip: false,
     iconSize: 30,
   },
   md: {
-    card: { flex: "0 0 72px", minWidth: 72, height: 120, padding: "10px 8px" },
+    card: { flex: "0 0 72px", minWidth: 72, height: 120 },
     time: { fontSize: 11 },
     temp: { fontSize: 18 },
-    showPrecip: true,
     iconSize: 32,
   },
 };
@@ -24,11 +22,11 @@ export function HourlyCard({ period, unitPrimary, formatTime, isNow, size = "md"
   const isFahrenheit = unitPrimary === "F";
   const tempDisplay = isFahrenheit ? period.temperature : fToC(period.temperature);
   const secondaryTemp = isFahrenheit ? fToC(period.temperature) : period.temperature;
+  const secondaryUnit = isFahrenheit ? "C" : "F";
   const precip = period.probabilityOfPrecipitation?.value ?? 0;
 
   return (
     <motion.div
-      key={period.startTime}
       initial={{ opacity: 0, x: 24 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: 0.3 + index * 0.05, duration: 0.35 }}
@@ -55,7 +53,7 @@ export function HourlyCard({ period, unitPrimary, formatTime, isNow, size = "md"
       {size === "md" && (
         <>
           <div style={{ fontSize: 11, opacity: 0.45 }}>
-            {secondaryTemp}°{unitPrimary}
+            {secondaryTemp}°{secondaryUnit}
           </div>
           <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{precip}%</div>
         </>

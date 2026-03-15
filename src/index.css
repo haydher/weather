@@ -15,6 +15,29 @@
   --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.2);
   --shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.3);
 }
+/* Target the whole scrollbar */
+::-webkit-scrollbar {
+  width: 12px; /* width of vertical scrollbar */
+  height: 12px; /* height of horizontal scrollbar */
+}
+
+/* Track (background of the scrollbar) */
+::-webkit-scrollbar-track {
+  background: #0a0f1e;
+  border-radius: 10px;
+}
+
+/* Thumb (the draggable part) */
+::-webkit-scrollbar-thumb {
+  background-color: rgb(26, 31, 48); /* color of the thumb */
+  border-radius: 10px; /* rounded corners */
+  border: 3px solid #0a0f1e; /* optional: space around thumb */
+}
+
+/* Thumb on hover */
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(33, 37, 49);
+}
 
 *,
 *::before,
@@ -343,7 +366,7 @@ body::before {
   overflow: visible;
 }
 
-/* 10-day forecast row — single row flex, no wrap */
+/* 7-day forecast row — single row flex, no wrap */
 .forecast-row {
   display: flex;
   align-items: center;

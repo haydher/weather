@@ -8,7 +8,7 @@ export function DayForecastList({ dayGroups, hourlyPeriods, unitPrimary }) {
   return (
     <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
       <h2 className="weather-label" style={{ margin: "0 0 12px", fontFamily: "var(--font-display)", fontSize: 18 }}>
-        10-Day Forecast
+        7-Day Forecast
       </h2>
       <ul
         style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column" }}

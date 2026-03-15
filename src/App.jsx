@@ -20,35 +20,39 @@ export default function App() {
   const search = useGeocodeSearch(setSelectedPlace);
   const { forecast, forecastHourly, status, errorMessage, retry } = useNwsForecast(selectedPlace);
 
-  // When geolocation fails or user is outside US, focus search so they can pick a place
   useEffect(() => {
     if (!locationDetecting && !selectedPlace) {
       search.setSearchFocused(true);
     }
-  }, [locationDetecting, selectedPlace]);
+  }, [locationDetecting, selectedPlace, search.setSearchFocused]);
 
   const periods = forecast?.properties?.periods ?? [];
   const hourlyPeriods = forecastHourly?.properties?.periods ?? [];
-  const now = new Date();
 
-  const currentPeriod =
-    periods.find((p) => {
-      const start = new Date(p.startTime);
-      const end = new Date(p.endTime);
-      return now >= start && now < end;
-    }) || periods[0];
+  const { currentPeriod, todayHigh, todayLow, timeGreeting } = useMemo(() => {
+    const now = new Date();
+    const todayStr = now.toDateString();
 
-  const todayDayPeriod = periods.find(
-    (p) => p.isDaytime && new Date(p.startTime).toDateString() === now.toDateString()
-  );
-  const todayNightPeriod = periods.find(
-    (p) => !p.isDaytime && new Date(p.startTime).toDateString() === now.toDateString()
-  );
-  const todayHigh = todayDayPeriod?.temperature ?? currentPeriod?.temperature;
-  const todayLow =
-    todayNightPeriod?.temperature ?? periods.find((p) => !p.isDaytime)?.temperature ?? currentPeriod?.temperature;
+    const current = periods.find((p) => now >= new Date(p.startTime) && now < new Date(p.endTime)) ?? periods[0];
 
-  const next24Hourly = useMemo(() => hourlyPeriods.slice(0, 24), [hourlyPeriods]);
+    let dayPeriod, nightPeriod;
+    for (const p of periods) {
+      if (new Date(p.startTime).toDateString() !== todayStr) continue;
+      if (p.isDaytime && !dayPeriod) dayPeriod = p;
+      if (!p.isDaytime && !nightPeriod) nightPeriod = p;
+      if (dayPeriod && nightPeriod) break;
+    }
+
+    return {
+      currentPeriod: current,
+      todayHigh: dayPeriod?.temperature ?? current?.temperature,
+      todayLow: nightPeriod?.temperature ?? periods.find((p) => !p.isDaytime)?.temperature ?? current?.temperature,
+      timeGreeting: getTimeGreeting(now, current),
+    };
+  }, [periods]);
+
+  const next24Hourly = hourlyPeriods.slice(0, 24);
+
   const precipPeak = useMemo(
     () =>
       next24Hourly.reduce((best, p) => {
@@ -57,34 +61,33 @@ export default function App() {
       }, null),
     [next24Hourly]
   );
+
   const precipHeader =
-    precipPeak && precipPeak.val >= 20
-      ? `Rain expected at ${formatTime(precipPeak.period.startTime)}`
-      : "Next 24 hours";
+    precipPeak?.val >= 20 ? `Rain expected at ${formatTime(precipPeak.period.startTime)}` : "Next 24 hours";
 
   const dayGroups = useMemo(() => {
     const groups = [];
     const seen = new Set();
+    const todayStr = new Date().toDateString();
     for (const p of periods) {
       const day = new Date(p.startTime).toDateString();
       if (seen.has(day)) continue;
       seen.add(day);
-      const dayPeriod = periods.filter((x) => new Date(x.startTime).toDateString() === day && x.isDaytime)[0];
-      const nightPeriod = periods.filter((x) => new Date(x.startTime).toDateString() === day && !x.isDaytime)[0];
-      groups.push({ day, dayPeriod, nightPeriod, name: formatDay(dayPeriod?.startTime || nightPeriod?.startTime) });
+      if (day === todayStr) continue;
+      const dayPeriod = periods.find((x) => new Date(x.startTime).toDateString() === day && x.isDaytime);
+      const nightPeriod = periods.find((x) => new Date(x.startTime).toDateString() === day && !x.isDaytime);
+      groups.push({ day, dayPeriod, nightPeriod, name: formatDay(dayPeriod?.startTime ?? nightPeriod?.startTime) });
       if (groups.length >= 10) break;
     }
     return groups;
   }, [periods]);
 
-  const timeGreeting = getTimeGreeting(now, currentPeriod);
-  const heroLoading = (status === "loading" || locationDetecting) && selectedPlace;
-  const heroSuccess = status === "success" && currentPeriod && !locationDetecting;
+  const isLoading = (status === "loading" || locationDetecting) && !!selectedPlace;
+  const isSuccess = status === "success" && !!currentPeriod && !locationDetecting;
 
   return (
     <>
       <Starfield />
-
       <motion.div
         style={{ display: "flex", flexDirection: "column", gap: 16 }}
         initial={{ opacity: 0 }}
@@ -110,9 +113,10 @@ export default function App() {
 
         {selectedPlace && (
           <AnimatePresence mode="wait">
-            {heroLoading && <HeroCard isLoading />}
-            {heroSuccess && (
+            {isLoading && <HeroCard key="loading" isLoading />}
+            {isSuccess && (
               <HeroCard
+                key="hero"
                 currentPeriod={currentPeriod}
                 todayHigh={todayHigh}
                 todayLow={todayLow}
