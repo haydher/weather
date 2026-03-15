@@ -74,7 +74,7 @@ export function HeroCard({ isLoading, currentPeriod, todayHigh, todayLow, unitPr
         <WeatherIcon
           shortForecast={currentPeriod.shortForecast}
           isDaytime={currentPeriod.isDaytime}
-          size={124}
+          size={220}
           alt={currentPeriod.shortForecast}
         />
       </div>

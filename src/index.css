@@ -98,7 +98,8 @@ body::before {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  overflow-x: hidden;
+  overflow-x: clip;
+  overflow-y: visible;
 }
 
 /* Glass card base */
@@ -115,39 +116,6 @@ body::before {
 .glass-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow-hover);
-}
-
-/* Subtle starfield for night (CSS-only) */
-.starfield {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  overflow: hidden;
-}
-
-.starfield::before,
-.starfield::after {
-  content: "";
-  position: absolute;
-  width: 2px;
-  height: 2px;
-  background: rgba(255, 255, 255, 0.4);
-  border-radius: 50%;
-  box-shadow: 40px 60px 0 rgba(255, 255, 255, 0.3), 120px 180px 0 rgba(255, 255, 255, 0.25),
-    200px 40px 0 rgba(255, 255, 255, 0.35), 280px 140px 0 rgba(255, 255, 255, 0.2),
-    360px 80px 0 rgba(255, 255, 255, 0.3), 80px 220px 0 rgba(255, 255, 255, 0.2),
-    160px 260px 0 rgba(255, 255, 255, 0.25), 240px 100px 0 rgba(255, 255, 255, 0.2);
-  animation: twinkle 4s ease-in-out infinite;
-}
-
-.starfield::after {
-  left: 50%;
-  top: 30%;
-  animation-delay: 2s;
-  box-shadow: 20px 80px 0 rgba(255, 255, 255, 0.2), 100px 20px 0 rgba(255, 255, 255, 0.3),
-    180px 160px 0 rgba(255, 255, 255, 0.25), 260px 60px 0 rgba(255, 255, 255, 0.2),
-    340px 200px 0 rgba(255, 255, 255, 0.3);
 }
 
 @keyframes twinkle {
@@ -318,6 +286,9 @@ body::before {
 .hero-icon {
   grid-column: 2;
   align-self: start;
+  position: absolute;
+  right: -20px;
+  top: -20px;
 }
 
 .hero-bottom-row {
