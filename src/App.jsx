@@ -88,7 +88,7 @@ export default function App() {
 
   return (
     <>
-      <Starfield />
+      {/* <Starfield /> */}
       <motion.div
         style={{ display: "flex", flexDirection: "column", gap: 16 }}
         initial={{ opacity: 0 }}

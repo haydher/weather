@@ -286,8 +286,15 @@ body::before {
 .hero-icon {
   grid-column: 2;
   align-self: start;
-  position: absolute;
-  right: -20px;
+  object-fit: contain;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.hero-icon img {
+  scale: 1.7;
 }
 
 .hero-bottom-row {
