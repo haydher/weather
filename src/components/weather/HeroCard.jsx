@@ -46,28 +46,35 @@ export function HeroCard({ isLoading, currentPeriod, todayHigh, todayLow, unitPr
     >
       <p
         className="hero-greeting"
-        style={{ margin: "0 0 12px", fontSize: 13, fontStyle: "italic", opacity: 0.6, fontFamily: "var(--font-body)" }}
+        style={{
+          margin: "0 0 12px",
+          fontSize: 13,
+          fontStyle: "italic",
+          opacity: 0.6,
+          fontFamily: "var(--font-body)",
+        }}
       >
         {timeGreeting}
       </p>
+
       <div className="hero-left">
         <TemperatureDisplay value={currentPeriod.temperature} unitPrimary={unitPrimary} />
-        <p style={{ margin: "8px 0 0", fontSize: 18, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
-          {currentPeriod.shortForecast}
-        </p>
-        <p style={{ margin: "6px 0 0", fontSize: 14, color: "var(--text-secondary)" }}>
+
+        <p style={{ margin: "8px 0", fontSize: 14, color: "var(--text-secondary)" }}>
           Feels like {unitPrimary === "F" ? feelsLikeF : feelsLikeC}°{unitPrimary} (
           {unitPrimary === "F" ? feelsLikeC : feelsLikeF}°{unitPrimary === "F" ? "C" : "F"})
         </p>
-        <p style={{ margin: "4px 0 0", fontSize: 14, color: "var(--text-secondary)" }}>
-          H {todayHigh}° / L {todayLow}°
-        </p>
+
+        <span style={{ display: "flex", alignItems: "center", justifyItems: "center", gap: 4 }}>
+          <WindArrow size={15} direction="N" /> {todayHigh}° /
+          <WindArrow size={15} direction="S" /> {todayLow}°
+        </span>
       </div>
       <div className="hero-icon">
         <WeatherIcon
           shortForecast={currentPeriod.shortForecast}
           isDaytime={currentPeriod.isDaytime}
-          size={96}
+          size={124}
           alt={currentPeriod.shortForecast}
         />
       </div>

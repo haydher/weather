@@ -43,6 +43,9 @@
 *::before,
 *::after {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 html {
@@ -315,7 +318,6 @@ body::before {
 .hero-icon {
   grid-column: 2;
   align-self: start;
-  margin-top: 8px;
 }
 
 .hero-bottom-row {
@@ -323,7 +325,6 @@ body::before {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 12px;
 }
 
 /* °F | °C toggle — pill, bottom-right of hero */
@@ -335,7 +336,7 @@ body::before {
   border-radius: 20px;
   padding: 4px;
   gap: 2px;
-  margin: 0 16px 16px 0;
+  margin-top: 12px;
 }
 
 .unit-toggle button {
