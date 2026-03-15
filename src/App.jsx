@@ -52,7 +52,7 @@ export default function App() {
     };
   }, [periods]);
 
-  const next24Hourly = hourlyPeriods.slice(0, 24);
+  const next24Hourly = useMemo(() => hourlyPeriods.slice(0, 24), [hourlyPeriods]);
 
   const precipPeak = useMemo(
     () =>
