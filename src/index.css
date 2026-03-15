@@ -288,7 +288,7 @@ body::before {
   align-self: start;
   position: absolute;
   right: -20px;
-  top: -20px;
+  top: 0;
 }
 
 .hero-bottom-row {
