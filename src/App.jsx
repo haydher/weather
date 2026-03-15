@@ -13,6 +13,7 @@ import { PrecipChart } from "./components/weather/PrecipChart.jsx";
 import { HourlyStrip } from "./components/weather/HourlyStrip.jsx";
 import { DayForecastList } from "./components/weather/DayForecastList.jsx";
 import { LiveMapSection } from "./components/weather/LiveMapSection.jsx";
+import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";
 
 export default function App() {
   const [unitPrimary, setUnitPrimary] = useState("F");
@@ -111,38 +112,48 @@ export default function App() {
 
         {status === "error" && <ErrorBanner message={errorMessage} onRetry={retry} />}
 
-        {selectedPlace && (
-          <AnimatePresence mode="wait">
-            {isLoading && <HeroCard key="loading" isLoading />}
-            {isSuccess && (
-              <HeroCard
-                key="hero"
-                currentPeriod={currentPeriod}
-                todayHigh={todayHigh}
-                todayLow={todayLow}
-                unitPrimary={unitPrimary}
-                setUnitPrimary={setUnitPrimary}
-                timeGreeting={timeGreeting}
-              />
-            )}
-          </AnimatePresence>
-        )}
+        <ErrorBoundary>
+          {selectedPlace && (
+            <AnimatePresence mode="wait">
+              {isLoading && <HeroCard key="loading" isLoading />}
+              {isSuccess && (
+                <HeroCard
+                  key="hero"
+                  currentPeriod={currentPeriod}
+                  todayHigh={todayHigh}
+                  todayLow={todayLow}
+                  unitPrimary={unitPrimary}
+                  setUnitPrimary={setUnitPrimary}
+                  timeGreeting={timeGreeting}
+                />
+              )}
+            </AnimatePresence>
+          )}
+        </ErrorBoundary>
 
-        {status === "success" && next24Hourly.length > 0 && (
-          <PrecipChart hourlyPeriods={next24Hourly} header={precipHeader} />
-        )}
+        <ErrorBoundary>
+          {status === "success" && next24Hourly.length > 0 && (
+            <PrecipChart hourlyPeriods={next24Hourly} header={precipHeader} />
+          )}
+        </ErrorBoundary>
 
-        {status === "success" && hourlyPeriods.length > 0 && (
-          <HourlyStrip hourlyPeriods={hourlyPeriods} unitPrimary={unitPrimary} />
-        )}
+        <ErrorBoundary>
+          {status === "success" && hourlyPeriods.length > 0 && (
+            <HourlyStrip hourlyPeriods={hourlyPeriods} unitPrimary={unitPrimary} />
+          )}
+        </ErrorBoundary>
 
-        {status === "success" && dayGroups.length > 0 && (
-          <DayForecastList dayGroups={dayGroups} hourlyPeriods={hourlyPeriods} unitPrimary={unitPrimary} />
-        )}
+        <ErrorBoundary>
+          {status === "success" && dayGroups.length > 0 && (
+            <DayForecastList dayGroups={dayGroups} hourlyPeriods={hourlyPeriods} unitPrimary={unitPrimary} />
+          )}
+        </ErrorBoundary>
 
-        {status === "success" && selectedPlace && (
-          <LiveMapSection selectedPlace={selectedPlace} unitPrimary={unitPrimary} />
-        )}
+        <ErrorBoundary>
+          {status === "success" && selectedPlace && (
+            <LiveMapSection selectedPlace={selectedPlace} unitPrimary={unitPrimary} />
+          )}
+        </ErrorBoundary>
 
         {!selectedPlace && !locationDetecting && status === "idle" && (
           <p style={{ textAlign: "center", color: "var(--text-secondary)", padding: 24 }}>
