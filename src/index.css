@@ -98,7 +98,7 @@ body::before {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  overflow-x: clip;
+  overflow-x: hidden;
   overflow-y: visible;
 }
 
@@ -288,7 +288,6 @@ body::before {
   align-self: start;
   position: absolute;
   right: -20px;
-  top: 0;
 }
 
 .hero-bottom-row {
