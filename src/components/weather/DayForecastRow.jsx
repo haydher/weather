@@ -40,21 +40,23 @@ export function DayForecastRow({ group, hourlyPeriods, expanded, onToggle, unitP
               <WeatherIcon shortForecast={shortForecast} isDaytime size={28} alt={shortForecast ?? ""} />
             </div>
             <div className="forecast-temps">
-              {hasOnlyOnePeriod ? (
-                <>
-                  <span className="temp-high">{high}°</span>
-                  {unitPrimary !== "C" && <span className="temp-celsius">({fToC(high)}°)</span>}
-                </>
-              ) : (
+              {unitPrimary === "F" ? (
                 <>
                   <span className="temp-high">{high}°</span>
                   <span className="temp-divider">/</span>
                   <span className="temp-low">{low}°</span>
-                  {unitPrimary !== "C" && (
-                    <span className="temp-celsius">
-                      ({fToC(high)}°/{fToC(low)}°)
-                    </span>
-                  )}
+                  <span className="temp-celsius">
+                    ({fToC(high)}° / {fToC(low)}°)
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="temp-high">{fToC(high)}°</span>
+                  <span className="temp-divider">/</span>
+                  <span className="temp-low">{fToC(low)}°</span>
+                  <span className="temp-celsius">
+                    ({high}° / {low}°)
+                  </span>
                 </>
               )}
             </div>
