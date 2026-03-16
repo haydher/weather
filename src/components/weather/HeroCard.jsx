@@ -15,11 +15,13 @@ export function HeroCard({ isLoading, currentPeriod, todayHigh, todayLow, unitPr
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         className="glass-card"
-        style={{ padding: 24, minHeight: 280 }}
+        style={{ padding: 24, minHeight: 260 }}
       >
         <div className="shimmer" style={{ height: 20, width: "70%", marginBottom: 16 }} />
         <div className="shimmer" style={{ height: 72, width: "50%", marginBottom: 16 }} />
-        <div className="shimmer" style={{ height: 24, width: "60%" }} />
+        <div className="shimmer" style={{ height: 24, width: "35%", marginBottom: 16 }} />
+        <div className="shimmer" style={{ height: 24, width: "20%", marginBottom: 16 }} />
+        <div className="shimmer" style={{ height: 24, width: "40%" }} />
       </motion.div>
     );
   }

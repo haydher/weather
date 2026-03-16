@@ -17,7 +17,7 @@ const sizeStyles = {
   },
 };
 
-export function HourlyCard({ period, unitPrimary, formatTime, isNow, size = "md", index = 0 }) {
+export function HourlyCard({ period, unitPrimary, formatTime, isNow, size = "md", index = 0, delay = 0.3 }) {
   const style = sizeStyles[size] ?? sizeStyles.md;
   const isFahrenheit = unitPrimary === "F";
   const tempDisplay = isFahrenheit ? period.temperature : fToC(period.temperature);
@@ -29,7 +29,7 @@ export function HourlyCard({ period, unitPrimary, formatTime, isNow, size = "md"
     <motion.div
       initial={{ opacity: 0, x: 24 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: 0.3 + index * 0.05, duration: 0.35 }}
+      transition={{ delay: delay + index * 0.05, duration: 0.35 }}
       className="glass-card"
       style={{
         ...style.card,

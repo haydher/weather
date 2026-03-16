@@ -44,11 +44,14 @@ export default function App() {
       if (dayPeriod && nightPeriod) break;
     }
 
+    const todayHigh = dayPeriod?.temperature ?? current?.temperature;
+    const todayLow = nightPeriod?.temperature ?? periods.find((p) => !p.isDaytime)?.temperature ?? current?.temperature;
+
     return {
       currentPeriod: current,
-      todayHigh: dayPeriod?.temperature ?? current?.temperature,
-      todayLow: nightPeriod?.temperature ?? periods.find((p) => !p.isDaytime)?.temperature ?? current?.temperature,
-      timeGreeting: getTimeGreeting(now, current),
+      todayHigh,
+      todayLow,
+      timeGreeting: getTimeGreeting(now, current, todayHigh),
     };
   }, [periods]);
 
@@ -69,12 +72,19 @@ export default function App() {
   const dayGroups = useMemo(() => {
     const groups = [];
     const seen = new Set();
-    const todayStr = new Date().toDateString();
+    const now = new Date();
+    const isLateNight = now.getHours() < 5;
+
+    // Late night (midnight–5am): "today" is actually yesterday to the user,
+    // so don't skip the current calendar day — it's the first day they want to see.
+    // Normal hours: skip today since HeroCard + HourlyStrip already cover it.
+    const todayStr = isLateNight ? null : now.toDateString();
+
     for (const p of periods) {
       const day = new Date(p.startTime).toDateString();
       if (seen.has(day)) continue;
       seen.add(day);
-      if (day === todayStr) continue;
+      if (todayStr && day === todayStr) continue;
       const dayPeriod = periods.find((x) => new Date(x.startTime).toDateString() === day && x.isDaytime);
       const nightPeriod = periods.find((x) => new Date(x.startTime).toDateString() === day && !x.isDaytime);
       groups.push({ day, dayPeriod, nightPeriod, name: formatDay(dayPeriod?.startTime ?? nightPeriod?.startTime) });
