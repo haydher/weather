@@ -8,6 +8,7 @@ import { getTimeGreeting } from "./lib/weatherUtils.js";
 import { Starfield } from "./components/layout/Starfield.jsx";
 import { SearchBar } from "./components/search/SearchBar.jsx";
 import { ErrorBanner } from "./components/ui/ErrorBanner.jsx";
+import { WeatherAlerts } from "./components/weather/WeatherAlerts.jsx";
 import { HeroCard } from "./components/weather/HeroCard.jsx";
 import { PrecipChart } from "./components/weather/PrecipChart.jsx";
 import { HourlyStrip } from "./components/weather/HourlyStrip.jsx";
@@ -19,7 +20,7 @@ export default function App() {
   const [unitPrimary, setUnitPrimary] = useState("F");
   const { selectedPlace, setSelectedPlace, locationDetecting } = useLocation();
   const search = useGeocodeSearch(setSelectedPlace);
-  const { forecast, forecastHourly, status, errorMessage, retry } = useNwsForecast(selectedPlace);
+  const { forecast, forecastHourly, alerts, status, errorMessage, retry } = useNwsForecast(selectedPlace);
 
   useEffect(() => {
     if (!locationDetecting && !selectedPlace) {
@@ -33,15 +34,9 @@ export default function App() {
   const { currentPeriod, todayHigh, todayLow, timeGreeting } = useMemo(() => {
     const now = new Date();
     const todayStr = now.toDateString();
-
-    // Use hourly for current conditions — daily period temps are highs/lows, not current
     const currentHourly =
       hourlyPeriods.find((p) => now >= new Date(p.startTime) && now < new Date(p.endTime)) ?? hourlyPeriods[0];
-
-    // Still use daily periods for high/low and shortForecast context
     const currentDaily = periods.find((p) => now >= new Date(p.startTime) && now < new Date(p.endTime)) ?? periods[0];
-
-    // Merge: use hourly for temperature/windSpeed/shortForecast, daily for detailedForecast
     const current = currentHourly ? { ...currentDaily, ...currentHourly } : currentDaily;
 
     let dayPeriod, nightPeriod;
@@ -87,10 +82,6 @@ export default function App() {
     const seen = new Set();
     const now = new Date();
     const isLateNight = now.getHours() < 5;
-
-    // Late night (midnight–5am): "today" is actually yesterday to the user,
-    // so don't skip the current calendar day — it's the first day they want to see.
-    // Normal hours: skip today since HeroCard + HourlyStrip already cover it.
     const todayStr = isLateNight ? null : now.toDateString();
 
     for (const p of periods) {
@@ -153,6 +144,8 @@ export default function App() {
             </AnimatePresence>
           )}
         </ErrorBoundary>
+
+        <ErrorBoundary>{status === "success" && alerts.length > 0 && <WeatherAlerts alerts={alerts} />}</ErrorBoundary>
 
         <ErrorBoundary>
           {status === "success" && next24Hourly.length > 0 && (

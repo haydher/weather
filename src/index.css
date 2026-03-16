@@ -259,6 +259,18 @@ body::before {
   }
 }
 
+@keyframes alertPulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.4);
+  }
+}
+
 /* Scrollbar hide for hourly strip */
 .hide-scrollbar {
   -ms-overflow-style: none;
