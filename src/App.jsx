@@ -17,7 +17,21 @@ import { LiveMapSection } from "./components/weather/LiveMapSection.jsx";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";
 
 export default function App() {
-  const [unitPrimary, setUnitPrimary] = useState("F");
+  const [unitPrimary, setUnitPrimary] = useState(() => {
+    try {
+      return localStorage.getItem("unitPrimary") || "F";
+    } catch {
+      return "F";
+    }
+  });
+
+  const handleUnitChange = (unit) => {
+    setUnitPrimary(unit);
+    try {
+      localStorage.setItem("unitPrimary", unit);
+    } catch {}
+  };
+
   const { selectedPlace, setSelectedPlace, locationDetecting } = useLocation();
   const search = useGeocodeSearch(setSelectedPlace);
   const { forecast, forecastHourly, alerts, status, errorMessage, retry } = useNwsForecast(selectedPlace);
@@ -137,7 +151,7 @@ export default function App() {
                   todayHigh={todayHigh}
                   todayLow={todayLow}
                   unitPrimary={unitPrimary}
-                  setUnitPrimary={setUnitPrimary}
+                  setUnitPrimary={handleUnitChange}
                   timeGreeting={timeGreeting}
                 />
               )}

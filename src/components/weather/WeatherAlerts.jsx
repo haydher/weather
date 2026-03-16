@@ -156,16 +156,15 @@ function AlertCard({ alert, index }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -8 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.06, duration: 0.3 }}
+      transition={{ delay: 0.4 + index * 0.1, duration: 0.35 }}
       style={{
         borderRadius: 16,
         border: `1px solid ${sev.border}`,
         background: sev.bg,
         backdropFilter: "blur(20px)",
         WebkitBackdropFilter: "blur(20px)",
-        overflow: "hidden",
         cursor: "pointer",
       }}
       onClick={() => setExpanded((v) => !v)}

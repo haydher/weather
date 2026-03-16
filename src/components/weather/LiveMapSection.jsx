@@ -4,7 +4,7 @@ export function LiveMapSection({ selectedPlace, unitPrimary }) {
   if (!selectedPlace) return null;
 
   return (
-    <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}>
+    <motion.section initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}>
       <h2 className="weather-label" style={{ margin: "0 0 12px", fontFamily: "var(--font-display)", fontSize: 18 }}>
         Live Map
       </h2>
