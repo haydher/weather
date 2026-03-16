@@ -28,7 +28,11 @@ export function HeroCard({ isLoading, currentPeriod, todayHigh, todayLow, unitPr
 
   if (!currentPeriod) return null;
 
-  const feelsLikeF = feelsLike(currentPeriod.temperature, currentPeriod.windSpeed);
+  const feelsLikeF = feelsLike(
+    currentPeriod.temperature,
+    currentPeriod.windSpeed,
+    currentPeriod.relativeHumidity?.value
+  );
   const feelsLikeC = fToC(feelsLikeF);
 
   return (

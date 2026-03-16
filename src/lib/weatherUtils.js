@@ -29,7 +29,7 @@ export function windDirectionToDegrees(dir) {
  * - Heat index: valid when tempF ≥ 80 (Rothfusz, humidity estimated at 60% — NWS doesn't provide it)
  * - Middle range: returns actual temp unchanged
  */
-export function feelsLike(tempF, windSpeedStr) {
+export function feelsLike(tempF, windSpeedStr, relativeHumidity) {
   const wind = parseFloat(windSpeedStr);
 
   if (tempF <= 50 && !isNaN(wind) && wind > 3) {
@@ -37,7 +37,7 @@ export function feelsLike(tempF, windSpeedStr) {
   }
 
   if (tempF >= 80) {
-    const rh = 60; // estimated — NWS forecast endpoint omits humidity
+    const rh = relativeHumidity ?? 60;
     return Math.round(
       -42.379 +
         2.04901523 * tempF +

@@ -34,7 +34,15 @@ export default function App() {
     const now = new Date();
     const todayStr = now.toDateString();
 
-    const current = periods.find((p) => now >= new Date(p.startTime) && now < new Date(p.endTime)) ?? periods[0];
+    // Use hourly for current conditions — daily period temps are highs/lows, not current
+    const currentHourly =
+      hourlyPeriods.find((p) => now >= new Date(p.startTime) && now < new Date(p.endTime)) ?? hourlyPeriods[0];
+
+    // Still use daily periods for high/low and shortForecast context
+    const currentDaily = periods.find((p) => now >= new Date(p.startTime) && now < new Date(p.endTime)) ?? periods[0];
+
+    // Merge: use hourly for temperature/windSpeed/shortForecast, daily for detailedForecast
+    const current = currentHourly ? { ...currentDaily, ...currentHourly } : currentDaily;
 
     let dayPeriod, nightPeriod;
     for (const p of periods) {
@@ -44,8 +52,13 @@ export default function App() {
       if (dayPeriod && nightPeriod) break;
     }
 
-    const todayHigh = dayPeriod?.temperature ?? current?.temperature;
-    const todayLow = nightPeriod?.temperature ?? periods.find((p) => !p.isDaytime)?.temperature ?? current?.temperature;
+    const todayHigh =
+      dayPeriod?.temperature ??
+      Math.max(
+        ...hourlyPeriods.filter((p) => new Date(p.startTime).toDateString() === todayStr).map((p) => p.temperature)
+      );
+    const todayLow =
+      nightPeriod?.temperature ?? periods.find((p) => !p.isDaytime)?.temperature ?? currentHourly?.temperature;
 
     return {
       currentPeriod: current,
@@ -53,7 +66,7 @@ export default function App() {
       todayLow,
       timeGreeting: getTimeGreeting(now, current, todayHigh),
     };
-  }, [periods]);
+  }, [periods, hourlyPeriods]);
 
   const next24Hourly = useMemo(() => hourlyPeriods.slice(0, 24), [hourlyPeriods]);
 
