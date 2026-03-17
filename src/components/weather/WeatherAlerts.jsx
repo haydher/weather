@@ -166,6 +166,8 @@ function AlertCard({ alert, index }) {
         backdropFilter: "blur(20px)",
         WebkitBackdropFilter: "blur(20px)",
         cursor: "pointer",
+        transform: "translateZ(0)",
+        WebkitTransform: "translateZ(0)",
       }}
       onClick={() => setExpanded((v) => !v)}
     >

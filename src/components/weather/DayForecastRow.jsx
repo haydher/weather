@@ -9,7 +9,6 @@ export function DayForecastRow({ group, hourlyPeriods, expanded, onToggle, unitP
   const now = new Date();
   const high = group.dayPeriod?.temperature ?? group.nightPeriod?.temperature;
   const low = group.nightPeriod?.temperature ?? group.dayPeriod?.temperature;
-  const hasOnlyOnePeriod = !group.dayPeriod || !group.nightPeriod;
   const precip =
     group.dayPeriod?.probabilityOfPrecipitation?.value ?? group.nightPeriod?.probabilityOfPrecipitation?.value ?? 0;
   const detailed = group.dayPeriod?.detailedForecast || group.nightPeriod?.detailedForecast || "";
@@ -29,7 +28,7 @@ export function DayForecastRow({ group, hourlyPeriods, expanded, onToggle, unitP
     >
       <motion.div
         className="glass-card"
-        style={{ overflow: "hidden", cursor: "pointer" }}
+        style={{ overflow: "hidden", cursor: "pointer", transform: "translateZ(0)", WebkitTransform: "translateZ(0)" }}
         onClick={() => onToggle(expanded ? null : index)}
       >
         <div className="forecast-row">
@@ -83,6 +82,9 @@ export function DayForecastRow({ group, hourlyPeriods, expanded, onToggle, unitP
                     overflowX: "auto",
                     scrollSnapType: "x mandatory",
                     padding: "12px 16px 8px",
+                    WebkitOverflowScrolling: "touch",
+                    transform: "translateZ(0)",
+                    WebkitTransform: "translateZ(0)",
                   }}
                 >
                   {dayHours.map((p, hourIndex) => {

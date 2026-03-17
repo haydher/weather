@@ -28,6 +28,8 @@ export function DayForecastList({ dayGroups, hourlyPeriods, unitPrimary, isLoadi
                   padding: "12px 16px",
                   gap: 12,
                   minHeight: 52,
+                  transform: "translateZ(0)",
+                  WebkitTransform: "translateZ(0)",
                 }}
               >
                 <div className="shimmer" style={{ height: 14, width: 36, borderRadius: 4 }} />

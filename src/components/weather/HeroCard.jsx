@@ -38,9 +38,9 @@ export function HeroCard({ isLoading, currentPeriod, todayHigh, todayLow, unitPr
   return (
     <motion.div
       key="hero"
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
+      exit={{ opacity: 0, y: -8 }}
       transition={{ duration: 0.3 }}
       className="glass-card hero-card"
       style={{
@@ -48,6 +48,8 @@ export function HeroCard({ isLoading, currentPeriod, todayHigh, todayLow, unitPr
         background: getGradientForCondition(currentPeriod.shortForecast, currentPeriod.isDaytime),
         backgroundSize: "200% 200%",
         transition: "background 2s ease",
+        transform: "translateZ(0)",
+        WebkitTransform: "translateZ(0)",
       }}
     >
       <p

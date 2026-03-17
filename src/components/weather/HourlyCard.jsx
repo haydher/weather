@@ -27,13 +27,15 @@ export function HourlyCard({ period, unitPrimary, formatTime, isNow, size = "md"
 
   return (
     <motion.div
-      initial={{ opacity: 0, x: 24 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: delay + index * 0.05, duration: 0.35 }}
+      initial={{ opacity: 0, scale: 0.92 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: delay + index * 0.05, duration: 0.25, ease: "easeOut" }}
       className="glass-card"
       style={{
         ...style.card,
         scrollSnapAlign: "start",
+        transform: "translateZ(0)",
+        WebkitTransform: "translateZ(0)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",

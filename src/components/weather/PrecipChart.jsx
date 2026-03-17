@@ -170,7 +170,7 @@ export function PrecipChart({ hourlyPeriods, header, isLoading }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.2 }}
       className="glass-card"
-      style={{ padding: 16 }}
+      style={{ padding: 16, transform: "translateZ(0)", WebkitTransform: "translateZ(0)" }}
     >
       <h3 className="weather-label" style={{ margin: "0 0 2px", fontSize: 14, color: "var(--text-primary)" }}>
         {header}
