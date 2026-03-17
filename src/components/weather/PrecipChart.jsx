@@ -54,7 +54,7 @@ function barColor(value) {
   return `rgba(80, 160, 255, ${0.1 + (value / 100) * 0.4})`;
 }
 
-export function PrecipChart({ hourlyPeriods, header }) {
+export function PrecipChart({ hourlyPeriods, header, isLoading }) {
   const chartRef = useRef(null);
   const chartInstanceRef = useRef(null);
 
@@ -125,6 +125,44 @@ export function PrecipChart({ hourlyPeriods, header }) {
       chartInstanceRef.current = null;
     };
   }, [hourlyLabels, precipData]);
+
+  if (isLoading) {
+    return (
+      <motion.div
+        key="precip-skeleton"
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1, duration: 0.35 }}
+        className="glass-card"
+        style={{ padding: 16 }}
+      >
+        <div className="shimmer" style={{ height: 14, width: "45%", marginBottom: 8, borderRadius: 6 }} />
+        <div className="shimmer" style={{ height: 11, width: "65%", borderRadius: 6 }} />
+
+        <div style={{ height: 80, position: "relative", marginBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: "100%" }}>
+            {Array.from({ length: 24 }).map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  flex: 1,
+                  height: `${30 + Math.sin(i * 0.8) * 20}%`,
+                  borderRadius: 3,
+                  background:
+                    "linear-gradient(90deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.10) 50%, rgba(255,255,255,0.04) 100%)",
+                  backgroundSize: "200% 100%",
+                  animation: "shimmer 5s ease-in-out infinite",
+                }}
+              />
+            ))}
+          </div>
+        </div>
+        <div>
+          <div className="shimmer" style={{ height: 14, width: "45%", marginBottom: 8, borderRadius: 6 }} />
+        </div>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.section

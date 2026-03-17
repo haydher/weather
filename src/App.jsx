@@ -162,20 +162,25 @@ export default function App() {
         <ErrorBoundary>{status === "success" && alerts.length > 0 && <WeatherAlerts alerts={alerts} />}</ErrorBoundary>
 
         <ErrorBoundary>
-          {status === "success" && next24Hourly.length > 0 && (
-            <PrecipChart hourlyPeriods={next24Hourly} header={precipHeader} />
+          {selectedPlace && (next24Hourly.length > 0 || isLoading) && (
+            <PrecipChart hourlyPeriods={next24Hourly} header={precipHeader} isLoading={isLoading} />
           )}
         </ErrorBoundary>
 
         <ErrorBoundary>
-          {status === "success" && hourlyPeriods.length > 0 && (
-            <HourlyStrip hourlyPeriods={hourlyPeriods} unitPrimary={unitPrimary} />
+          {selectedPlace && (hourlyPeriods.length > 0 || isLoading) && (
+            <HourlyStrip hourlyPeriods={hourlyPeriods} unitPrimary={unitPrimary} isLoading={isLoading} />
           )}
         </ErrorBoundary>
 
         <ErrorBoundary>
-          {status === "success" && dayGroups.length > 0 && (
-            <DayForecastList dayGroups={dayGroups} hourlyPeriods={hourlyPeriods} unitPrimary={unitPrimary} />
+          {selectedPlace && (dayGroups.length > 0 || isLoading) && (
+            <DayForecastList
+              dayGroups={dayGroups}
+              hourlyPeriods={hourlyPeriods}
+              unitPrimary={unitPrimary}
+              isLoading={isLoading}
+            />
           )}
         </ErrorBoundary>
 
