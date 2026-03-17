@@ -15,8 +15,14 @@ import { HourlyStrip } from "./components/weather/HourlyStrip.jsx";
 import { DayForecastList } from "./components/weather/DayForecastList.jsx";
 import { LiveMapSection } from "./components/weather/LiveMapSection.jsx";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";
+import { PullDownIndicator } from "./components/ui/PullDownIndicator.jsx";
+import { usePullDownToRefresh } from "./hooks/usePullDownToRefresh.js";
 
 export default function App() {
+  usePullDownToRefresh(async () => {
+    window.location.reload();
+  });
+
   const [unitPrimary, setUnitPrimary] = useState(() => {
     try {
       return localStorage.getItem("unitPrimary") || "F";
@@ -117,6 +123,7 @@ export default function App() {
   return (
     <>
       {/* <Starfield /> */}
+      <PullDownIndicator />
       <motion.div
         style={{ display: "flex", flexDirection: "column", gap: 16 }}
         initial={{ opacity: 0 }}
