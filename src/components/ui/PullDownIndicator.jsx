@@ -156,7 +156,8 @@ function SpinnerRing() {
       {/* Track */}
       <circle cx="12" cy="12" r={RADIUS} stroke="rgba(255,255,255,0.15)" strokeWidth="2.2" />
       {/* Spinning arc */}
-      <motion.circle
+      <circle
+        className="ptr-spinner-arc"
         cx="12"
         cy="12"
         r={RADIUS}
@@ -165,9 +166,6 @@ function SpinnerRing() {
         strokeLinecap="round"
         strokeDasharray={CIRCUMFERENCE}
         strokeDashoffset={CIRCUMFERENCE * 0.75}
-        animate={{ rotate: 360 }}
-        transition={{ duration: 0.75, ease: "linear", repeat: Infinity }}
-        style={{ transformOrigin: "center" }}
       />
     </svg>
   );

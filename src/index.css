@@ -271,6 +271,20 @@ body::before {
   }
 }
 
+@keyframes ptrSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ptr-spinner-arc {
+  transform-origin: center;
+  animation: ptrSpin 0.75s linear infinite;
+}
+
 /* Scrollbar hide for hourly strip */
 .hide-scrollbar {
   -ms-overflow-style: none;

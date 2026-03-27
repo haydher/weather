@@ -5,7 +5,7 @@ const MAX_PULL = 90; // px cap on rubber-band travel (reduced by 25%)
 const RESISTANCE = 0.45; // how much drag slows the pull
 const CANCEL_SLOP = 6; // px upward wiggle before we treat as cancel
 const EMIT_EPSILON = 0.5; // ignore tiny distance deltas to reduce jitter
-const MIN_RELEASE_MS = 500; // keep spinner visible long enough to confirm refresh
+const MIN_RELEASE_MS = 750; // keep spinner visible long enough to confirm refresh
 
 /**
  * usePullDownToRefresh
