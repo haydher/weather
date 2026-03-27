@@ -308,8 +308,11 @@ body::before {
   object-fit: contain;
   overflow: hidden;
   display: flex;
-  justify-content: center;
-  align-items: center;
+  flex-direction: column;
+  align-items: end;
+  justify-content: end;
+  margin-top: -25px;
+  gap: 16px;
 }
 
 .hero-icon img {

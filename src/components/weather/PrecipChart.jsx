@@ -3,6 +3,32 @@ import { motion } from "framer-motion";
 import { Chart, CategoryScale, LinearScale, BarElement, BarController, Tooltip } from "chart.js";
 import { formatTime } from "../../lib/formatters.js";
 
+const horizontalLinesPlugin = {
+  id: "horizontalLines",
+  beforeDraw(chart) {
+    const {
+      ctx,
+      chartArea: { left, right, top, bottom },
+    } = chart;
+    const height = bottom - top;
+    const yPositions = [top + 2, top + height / 2, bottom - 2];
+
+    ctx.save();
+    ctx.setLineDash([3, 5]);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(110, 109, 109, 0.479)";
+
+    for (const y of yPositions) {
+      ctx.beginPath();
+      ctx.moveTo(left, y);
+      ctx.lineTo(right, y);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  },
+};
+
 Chart.register(CategoryScale, LinearScale, BarElement, BarController, Tooltip);
 
 function buildSummary(hourlyPeriods) {
@@ -42,16 +68,15 @@ function buildSummary(hourlyPeriods) {
     return i === 0 ? segment[0].toUpperCase() + segment.slice(1) : segment;
   });
 
-  // "Heavy rain 11 PM – 7 AM, then light rain 3 PM – 5 PM"
   if (parts.length === 1) return parts[0];
   const last = parts.pop();
   return `${parts.join(", ")}, then ${last}.`;
 }
 
 function barColor(value) {
-  if (value >= 70) return `rgba(80, 160, 255, ${0.4 + (value / 100) * 0.6})`;
-  if (value >= 40) return `rgba(80, 160, 255, ${0.25 + (value / 100) * 0.5})`;
-  return `rgba(80, 160, 255, ${0.1 + (value / 100) * 0.4})`;
+  if (value >= 70) return `rgb(86 159 247)`;
+  if (value >= 40) return `rgb(84 138 203)`;
+  return `rgb(76 125 183)`;
 }
 
 export function PrecipChart({ hourlyPeriods, header, isLoading }) {
@@ -73,6 +98,7 @@ export function PrecipChart({ hourlyPeriods, header, isLoading }) {
     const ctx = chartRef.current.getContext("2d");
     chartInstanceRef.current = new Chart(ctx, {
       type: "bar",
+      plugins: [horizontalLinesPlugin],
       data: {
         labels: hourlyLabels,
         datasets: [
@@ -183,9 +209,9 @@ export function PrecipChart({ hourlyPeriods, header, isLoading }) {
       </div>
       <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
         {[
-          { label: "Low", color: "rgba(80,160,255,0.25)" },
-          { label: "Moderate", color: "rgba(80,160,255,0.5)" },
-          { label: "High", color: "rgba(80,160,255,0.85)" },
+          { label: "Low", color: "rgb(76 125 183)" },
+          { label: "Moderate", color: "rgb(84 138 203)" },
+          { label: "High", color: "rgb(86 159 247)" },
         ].map(({ label, color }) => (
           <span
             key={label}

@@ -85,18 +85,9 @@ export function HeroCard({ isLoading, currentPeriod, todayHigh, todayLow, unitPr
           size={140}
           alt={currentPeriod.shortForecast}
         />
-      </div>
-      <div className="hero-bottom-row">
-        {currentPeriod.windSpeed ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <WindArrow direction={currentPeriod.windDirection} />
-            <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>{currentPeriod.windSpeed}</span>
-          </div>
-        ) : (
-          <span />
-        )}
         <UnitToggle unitPrimary={unitPrimary} onChange={setUnitPrimary} />
       </div>
+      <div className="hero-bottom-row"></div>
     </motion.div>
   );
 }

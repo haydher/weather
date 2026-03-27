@@ -49,12 +49,12 @@ export function HourlyCard({ period, unitPrimary, formatTime, isNow, size = "md"
         {isNow ? "Now" : formatTime(period.startTime)}
       </div>
       <WeatherIcon shortForecast={period.shortForecast} isDaytime={period.isDaytime} size={style.iconSize} />
-      <div style={{ fontFamily: "var(--font-display)", ...style.temp, fontWeight: 300 }}>
+      <div style={{ fontFamily: "var(--font-display)", ...style.temp, fontWeight: 300, fontSize: 16 }}>
         {tempDisplay}°{unitPrimary}
       </div>
       {size === "md" && (
         <>
-          <div style={{ fontSize: 11, opacity: 0.45 }}>
+          <div style={{ fontSize: 11, opacity: 0.55, fontSize: 12 }}>
             {secondaryTemp}°{secondaryUnit}
           </div>
           <div style={{ fontSize: 11, color: "var(--text-secondary)", marginTop: 2 }}>{precip}%</div>
