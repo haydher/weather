@@ -181,6 +181,12 @@ export default function App() {
         </ErrorBoundary>
 
         <ErrorBoundary>
+          {status === "success" && selectedPlace && (
+            <LiveMapSection selectedPlace={selectedPlace} unitPrimary={unitPrimary} />
+          )}
+        </ErrorBoundary>
+
+        <ErrorBoundary>
           {selectedPlace && (dayGroups.length > 0 || isLoading) && (
             <DayForecastList
               dayGroups={dayGroups}
@@ -188,12 +194,6 @@ export default function App() {
               unitPrimary={unitPrimary}
               isLoading={isLoading}
             />
-          )}
-        </ErrorBoundary>
-
-        <ErrorBoundary>
-          {status === "success" && selectedPlace && (
-            <LiveMapSection selectedPlace={selectedPlace} unitPrimary={unitPrimary} />
           )}
         </ErrorBoundary>
 
