@@ -8,22 +8,32 @@ const horizontalLinesPlugin = {
   beforeDraw(chart) {
     const {
       ctx,
-      chartArea: { left, right, top, bottom },
+      width,
+      chartArea: { top, bottom },
     } = chart;
+    const lineLeft = 5;
+    const lineRight = width - 5;
     const height = bottom - top;
-    const yPositions = [top + 2, top + height / 2];
+    const topGapY = top + 8;
+    const bottomLineY = bottom;
+    const step = (bottomLineY - topGapY) / 2;
+    const yPositions = [topGapY, topGapY + step, bottomLineY];
 
     ctx.save();
-    ctx.setLineDash([3, 5]);
     ctx.lineWidth = 1;
     ctx.strokeStyle = "rgba(110, 109, 109, 0.479)";
-
-    for (const y of yPositions) {
+    ctx.setLineDash([3, 5]);
+    for (const y of yPositions.slice(0, -1)) {
       ctx.beginPath();
-      ctx.moveTo(left, y);
-      ctx.lineTo(right, y);
+      ctx.moveTo(lineLeft, y);
+      ctx.lineTo(lineRight, y);
       ctx.stroke();
     }
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(lineLeft, bottomLineY);
+    ctx.lineTo(lineRight, bottomLineY);
+    ctx.stroke();
 
     ctx.restore();
   },
