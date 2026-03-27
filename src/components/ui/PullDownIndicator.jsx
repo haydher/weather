@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const THRESHOLD = 80;
-const MAX_PULL = 120;
+const MAX_PULL = 90;
 const RADIUS = 9;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
@@ -14,7 +14,7 @@ const RING_START = WRAPPER_VERTICAL_PADDING; // first pixel of pill visible
 const RING_RANGE = MAX_PULL - RING_START; // distance over which ring fills
 
 export function PullDownIndicator() {
-  const [phase, setPhase] = useState("idle"); // idle | pulling | ready | releasing
+  const [phase, setPhase] = useState("idle"); // idle | pulling | ready | releasing | cancelling
   const [distance, setDistance] = useState(0);
   const releaseTimer = useRef(null);
 
@@ -41,7 +41,11 @@ export function PullDownIndicator() {
     }
 
     function onCancel() {
-      resetToIdle();
+      setPhase("cancelling");
+      clearTimeout(releaseTimer.current);
+      releaseTimer.current = setTimeout(() => {
+        resetToIdle();
+      }, 320);
     }
 
     function onComplete() {
@@ -67,7 +71,7 @@ export function PullDownIndicator() {
   // Progress starts when the pill first appears, then climbs 0→1 up to MAX_PULL
   const progress = Math.max(0, Math.min((distance - RING_START) / RING_RANGE, 1));
 
-  const translateY = phase === "releasing" ? 0 : `calc(-100% + ${distance}px)`;
+  const translateY = phase === "releasing" ? 0 : phase === "cancelling" ? "-100%" : `calc(-100% + ${distance}px)`;
 
   return (
     <AnimatePresence>
@@ -75,7 +79,7 @@ export function PullDownIndicator() {
         <motion.div
           key="ptr"
           initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          animate={{ opacity: phase === "cancelling" ? 0 : 1 }}
           exit={{ opacity: 0, transition: { duration: 0.25 } }}
           style={{
             position: "fixed",
@@ -89,7 +93,12 @@ export function PullDownIndicator() {
             paddingBottom: 12,
             pointerEvents: "none",
             transform: phase === "releasing" ? "translateY(0)" : `translateY(${translateY})`,
-            transition: phase === "releasing" ? "transform 0.3s cubic-bezier(0.34,1.56,0.64,1)" : "none",
+            transition:
+              phase === "releasing"
+                ? "transform 0.3s cubic-bezier(0.34,1.56,0.64,1)"
+                : phase === "cancelling"
+                ? "transform 0.32s ease, opacity 0.32s ease"
+                : "none",
           }}
         >
           <div

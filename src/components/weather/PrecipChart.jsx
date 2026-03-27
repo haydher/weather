@@ -11,7 +11,7 @@ const horizontalLinesPlugin = {
       chartArea: { left, right, top, bottom },
     } = chart;
     const height = bottom - top;
-    const yPositions = [top + 2, top + height / 2, bottom - 2];
+    const yPositions = [top + 2, top + height / 2];
 
     ctx.save();
     ctx.setLineDash([3, 5]);
