@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "./hooks/useLocation.js";
 import { useGeocodeSearch } from "./hooks/useGeocodeSearch.js";
 import { useNwsForecast } from "./hooks/useNwsForecast.js";
-import { formatTime, formatDay } from "./lib/formatters.js";
+import { formatTime } from "./lib/formatters.js";
 import { getTimeGreeting } from "./lib/weatherUtils.js";
 import { Starfield } from "./components/layout/Starfield.jsx";
 import { SearchBar } from "./components/search/SearchBar.jsx";
@@ -104,20 +104,41 @@ export default function App() {
     precipPeak?.val >= 20 ? `Rain expected at ${formatTime(precipPeak.period.startTime)}` : "Next 24 hours";
 
   const dayGroups = useMemo(() => {
-    const groups = [];
-    const seen = new Set();
-    const now = new Date();
-    const isLateNight = now.getHours() < 5;
-    const todayStr = isLateNight ? null : now.toDateString();
+    const getDayKey = (iso) => (typeof iso === "string" ? iso.split("T")[0] : null);
+    const parseOffsetMinutes = (iso) => {
+      if (typeof iso !== "string") return 0;
+      const m = iso.match(/([+-])(\d{2}):(\d{2})$|Z$/);
+      if (!m) return 0;
+      if (m[0] === "Z") return 0;
+      const sign = m[1] === "-" ? -1 : 1;
+      const hours = Number(m[2] ?? 0);
+      const mins = Number(m[3] ?? 0);
+      return sign * (hours * 60 + mins);
+    };
+    const dayNameFromKey = (dayKey) =>
+      new Date(`${dayKey}T12:00:00Z`).toLocaleDateString([], { weekday: "short", timeZone: "UTC" });
 
-    for (const p of periods) {
-      const day = new Date(p.startTime).toDateString();
-      if (seen.has(day)) continue;
-      seen.add(day);
-      if (todayStr && day === todayStr) continue;
-      const dayPeriod = periods.find((x) => new Date(x.startTime).toDateString() === day && x.isDaytime);
-      const nightPeriod = periods.find((x) => new Date(x.startTime).toDateString() === day && !x.isDaytime);
-      groups.push({ day, dayPeriod, nightPeriod, name: formatDay(dayPeriod?.startTime ?? nightPeriod?.startTime) });
+    const offsetMinutes = parseOffsetMinutes(periods[0]?.startTime);
+    const nowInForecastZone = new Date(Date.now() + offsetMinutes * 60 * 1000);
+    const todayKey = nowInForecastZone.toISOString().slice(0, 10);
+
+    const groups = [];
+    const daytime = periods.filter((p) => p.isDaytime);
+    for (let i = 0; i < daytime.length; i++) {
+      const dayPeriod = daytime[i];
+      const day = getDayKey(dayPeriod.startTime);
+      if (!day) continue;
+
+      const nightPeriod =
+        periods.find((x) => !x.isDaytime && getDayKey(x.startTime) === day) ??
+        periods.find((x, idx) => idx > periods.indexOf(dayPeriod) && !x.isDaytime);
+
+      groups.push({
+        day,
+        dayPeriod,
+        nightPeriod,
+        name: day === todayKey ? "Today" : dayNameFromKey(day),
+      });
       if (groups.length >= 10) break;
     }
     return groups;

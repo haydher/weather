@@ -15,7 +15,7 @@ export function DayForecastRow({ group, hourlyPeriods, expanded, onToggle, unitP
   const shortForecast = group.dayPeriod?.shortForecast || group.nightPeriod?.shortForecast;
 
   const dayHours = useMemo(
-    () => hourlyPeriods.filter((p) => new Date(p.startTime).toDateString() === group.day),
+    () => hourlyPeriods.filter((p) => p.startTime?.split("T")[0] === group.day),
     [hourlyPeriods, group.day]
   );
 
