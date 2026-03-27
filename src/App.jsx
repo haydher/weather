@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "./hooks/useLocation.js";
 import { useGeocodeSearch } from "./hooks/useGeocodeSearch.js";
 import { useNwsForecast } from "./hooks/useNwsForecast.js";
@@ -19,8 +20,13 @@ import { PullDownIndicator } from "./components/ui/PullDownIndicator.jsx";
 import { usePullDownToRefresh } from "./hooks/usePullDownToRefresh.js";
 
 export default function App() {
+  const queryClient = useQueryClient();
+
   usePullDownToRefresh(async () => {
-    window.location.reload();
+    await queryClient.invalidateQueries({
+      queryKey: ["nws-forecast"],
+      refetchType: "active",
+    });
   });
 
   const [unitPrimary, setUnitPrimary] = useState(() => {

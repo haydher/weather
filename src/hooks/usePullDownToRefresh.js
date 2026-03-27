@@ -16,11 +16,12 @@ const EMIT_EPSILON = 0.5; // ignore tiny distance deltas to reduce jitter
  *
  * Emits custom DOM events so PullToRefreshIndicator can react:
  *   - ptr:pull   → { detail: { distance: number } }
- *   - ptr:release → (triggered, will reload)
+ *   - ptr:release → (refresh started, show spinner)
  *   - ptr:cancel  → (not far enough, snapping back)
+ *   - ptr:complete → (refresh promise settled, hide spinner)
  *
  * Usage:
- *   usePullDownToRefresh(async () => { window.location.reload(); });
+ *   usePullDownToRefresh(async () => { await refreshWeatherData(); });
  */
 export function usePullDownToRefresh(onRefresh) {
   const startY = useRef(0);
@@ -94,6 +95,7 @@ export function usePullDownToRefresh(onRefresh) {
         emit("ptr:release");
         Promise.resolve(onRefresh()).finally(() => {
           refreshing.current = false;
+          emit("ptr:complete");
         });
       } else {
         emit("ptr:cancel");
@@ -150,6 +152,7 @@ export function usePullDownToRefresh(onRefresh) {
         emit("ptr:release");
         Promise.resolve(onRefresh()).finally(() => {
           refreshing.current = false;
+          emit("ptr:complete");
         });
       } else {
         emit("ptr:cancel");

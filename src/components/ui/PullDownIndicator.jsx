@@ -19,6 +19,12 @@ export function PullDownIndicator() {
   const releaseTimer = useRef(null);
 
   useEffect(() => {
+    function resetToIdle() {
+      setPhase("idle");
+      setDistance(0);
+      clearTimeout(releaseTimer.current);
+    }
+
     function onPull(e) {
       clearTimeout(releaseTimer.current);
       const d = e.detail.distance;
@@ -28,25 +34,30 @@ export function PullDownIndicator() {
 
     function onRelease() {
       setPhase("releasing");
+      clearTimeout(releaseTimer.current);
       releaseTimer.current = setTimeout(() => {
-        setPhase("idle");
-        setDistance(0);
-      }, 1800);
+        resetToIdle();
+      }, 8000);
     }
 
     function onCancel() {
-      setPhase("idle");
-      setDistance(0);
+      resetToIdle();
+    }
+
+    function onComplete() {
+      resetToIdle();
     }
 
     window.addEventListener("ptr:pull", onPull);
     window.addEventListener("ptr:release", onRelease);
     window.addEventListener("ptr:cancel", onCancel);
+    window.addEventListener("ptr:complete", onComplete);
 
     return () => {
       window.removeEventListener("ptr:pull", onPull);
       window.removeEventListener("ptr:release", onRelease);
       window.removeEventListener("ptr:cancel", onCancel);
+      window.removeEventListener("ptr:complete", onComplete);
       clearTimeout(releaseTimer.current);
     };
   }, []);
