@@ -1,95 +1,51 @@
 import { useState, useEffect, useCallback } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { fetchForecastForLocation } from "../lib/nwsApi.js";
 
 export function useNwsForecast(selectedPlace) {
-  const [points, setPoints] = useState(null);
-  const [forecast, setForecast] = useState(null);
-  const [forecastHourly, setForecastHourly] = useState(null);
-  const [alerts, setAlerts] = useState([]);
-  const [status, setStatus] = useState("idle");
-  const [errorMessage, setErrorMessage] = useState("");
-  const [refreshing, setRefreshing] = useState(false);
+  const [manualErrorMessage, setManualErrorMessage] = useState("");
+  const hasSelectedPlace = Boolean(selectedPlace);
+
+  const query = useQuery({
+    queryKey: [
+      "nws-forecast",
+      selectedPlace?.lat ?? null,
+      selectedPlace?.lon ?? null,
+      selectedPlace?.name ?? selectedPlace?.display_name ?? null,
+    ],
+    enabled: hasSelectedPlace,
+    queryFn: async () => fetchForecastForLocation(selectedPlace.lat, selectedPlace.lon),
+    refetchInterval: 60 * 60 * 1000,
+    refetchOnWindowFocus: true,
+    retry: false,
+  });
 
   useEffect(() => {
-    if (!selectedPlace) {
-      setPoints(null);
-      setForecast(null);
-      setForecastHourly(null);
-      setAlerts([]);
-      setStatus("idle");
-      setErrorMessage("");
-      return;
+    if (query.isSuccess || !hasSelectedPlace) {
+      setManualErrorMessage("");
     }
-    let cancelled = false;
-    setStatus("loading");
-    setErrorMessage("");
-    (async () => {
-      try {
-        const {
-          points: pointsData,
-          forecast: forecastData,
-          forecastHourly: hourlyData,
-          alerts: alertsData,
-        } = await fetchForecastForLocation(selectedPlace.lat, selectedPlace.lon);
-        if (cancelled) return;
-        setPoints(pointsData);
-        setForecast(forecastData);
-        setForecastHourly(hourlyData);
-        setAlerts(alertsData);
-        setStatus("success");
-      } catch (e) {
-        if (!cancelled) {
-          setErrorMessage(e.message || "Something went wrong");
-          setStatus("error");
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedPlace]);
+  }, [query.isSuccess, hasSelectedPlace]);
+
+  const status = !hasSelectedPlace ? "idle" : query.isError ? "error" : query.isPending ? "loading" : "success";
+
+  const points = query.data?.points ?? null;
+  const forecast = query.data?.forecast ?? null;
+  const forecastHourly = query.data?.forecastHourly ?? null;
+  const alerts = query.data?.alerts ?? [];
+  const errorMessage = manualErrorMessage || query.error?.message || (query.isError ? "Something went wrong" : "");
+  const refreshing = query.isRefetching;
 
   const refresh = useCallback(async () => {
-    if (!selectedPlace) return;
-    setRefreshing(true);
-    setErrorMessage("");
-    try {
-      const {
-        points: pointsData,
-        forecast: forecastData,
-        forecastHourly: hourlyData,
-        alerts: alertsData,
-      } = await fetchForecastForLocation(selectedPlace.lat, selectedPlace.lon);
-      setPoints(pointsData);
-      setForecast(forecastData);
-      setForecastHourly(hourlyData);
-      setAlerts(alertsData);
-      setStatus("success");
-    } catch (_) {}
-    setRefreshing(false);
-  }, [selectedPlace]);
+    if (!hasSelectedPlace) return;
+    setManualErrorMessage("");
+    await query.refetch();
+  }, [hasSelectedPlace, query]);
 
   const retry = useCallback(async () => {
-    setErrorMessage("");
-    if (!selectedPlace) return;
-    setStatus("loading");
-    try {
-      const {
-        points: pointsData,
-        forecast: forecastData,
-        forecastHourly: hourlyData,
-        alerts: alertsData,
-      } = await fetchForecastForLocation(selectedPlace.lat, selectedPlace.lon);
-      setPoints(pointsData);
-      setForecast(forecastData);
-      setForecastHourly(hourlyData);
-      setAlerts(alertsData);
-      setStatus("success");
-    } catch (e) {
-      setErrorMessage(e.message || "Something went wrong");
-      setStatus("error");
-    }
-  }, [selectedPlace]);
+    if (!hasSelectedPlace) return;
+    setManualErrorMessage("");
+    await query.refetch();
+  }, [hasSelectedPlace, query]);
 
   return {
     points,
@@ -98,7 +54,7 @@ export function useNwsForecast(selectedPlace) {
     alerts,
     status,
     errorMessage,
-    setErrorMessage,
+    setErrorMessage: setManualErrorMessage,
     refreshing,
     refresh,
     retry,
