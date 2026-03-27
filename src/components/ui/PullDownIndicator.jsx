@@ -2,27 +2,17 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const THRESHOLD = 80;
+const MAX_PULL = 120;
+const RADIUS = 9;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
-/**
- * PullDownIndicator
- *
- * Drop this once anywhere near the top of your render tree (e.g. in App.jsx,
- * above the <motion.div> that wraps everything). It listens for the custom
- * events emitted by usePullDownToRefresh and shows a glassmorphic pull
- * indicator that matches the dark design system.
- *
- * Usage in App.jsx:
- *   import { PullDownIndicator } from "./components/ui/PullDownIndicator.jsx";
- *   ...
- *   return (
- *     <>
- *       <PullDownIndicator />
- *       <motion.div ...>
- *         ...
- *       </motion.div>
- *     </>
- *   );
- */
+// The translated wrapper includes extra vertical padding (12 top + 12 bottom).
+// The pill starts becoming visible only after that padding has entered view.
+// Fill should start at first pill visibility and reach 100% at MAX_PULL.
+const WRAPPER_VERTICAL_PADDING = 24;
+const RING_START = WRAPPER_VERTICAL_PADDING; // first pixel of pill visible
+const RING_RANGE = MAX_PULL - RING_START; // distance over which ring fills
+
 export function PullDownIndicator() {
   const [phase, setPhase] = useState("idle"); // idle | pulling | ready | releasing
   const [distance, setDistance] = useState(0);
@@ -30,6 +20,7 @@ export function PullDownIndicator() {
 
   useEffect(() => {
     function onPull(e) {
+      clearTimeout(releaseTimer.current);
       const d = e.detail.distance;
       setDistance(d);
       setPhase(d >= THRESHOLD ? "ready" : "pulling");
@@ -37,7 +28,6 @@ export function PullDownIndicator() {
 
     function onRelease() {
       setPhase("releasing");
-      // Stay visible briefly so the user sees the spinner before reload
       releaseTimer.current = setTimeout(() => {
         setPhase("idle");
         setDistance(0);
@@ -63,9 +53,9 @@ export function PullDownIndicator() {
 
   const visible = phase !== "idle";
 
-  // How far the indicator has travelled (0→1 clamped)
-  const progress = Math.min(distance / THRESHOLD, 1);
-  // Translate the indicator down from -100% as the user pulls
+  // Progress starts when the pill first appears, then climbs 0→1 up to MAX_PULL
+  const progress = Math.max(0, Math.min((distance - RING_START) / RING_RANGE, 1));
+
   const translateY = phase === "releasing" ? 0 : `calc(-100% + ${distance}px)`;
 
   return (
@@ -84,7 +74,6 @@ export function PullDownIndicator() {
             zIndex: 9999,
             display: "flex",
             justifyContent: "center",
-            // Safe-area aware so it clears the notch
             paddingTop: "max(12px, env(safe-area-inset-top))",
             paddingBottom: 12,
             pointerEvents: "none",
@@ -96,8 +85,8 @@ export function PullDownIndicator() {
             style={{
               display: "flex",
               alignItems: "center",
-              gap: 10,
-              padding: "10px 18px",
+              justifyContent: "center",
+              padding: 5,
               borderRadius: 100,
               background: "rgba(255,255,255,0.10)",
               border: "1px solid rgba(255,255,255,0.18)",
@@ -106,19 +95,7 @@ export function PullDownIndicator() {
               boxShadow: "0 8px 32px rgba(0,0,0,0.35)",
             }}
           >
-            {phase === "releasing" ? <SpinnerIcon /> : <ArrowIcon progress={progress} ready={phase === "ready"} />}
-            <span
-              style={{
-                fontSize: 13,
-                fontFamily: "var(--font-body)",
-                fontWeight: 500,
-                color: phase === "ready" ? "#7dd3fc" : "rgba(255,255,255,0.75)",
-                transition: "color 0.2s ease",
-                letterSpacing: "0.02em",
-              }}
-            >
-              {phase === "releasing" ? "Refreshing…" : phase === "ready" ? "Release to refresh" : "Pull to refresh"}
-            </span>
+            {phase === "releasing" ? <SpinnerRing /> : <ProgressRing progress={progress} />}
           </div>
         </motion.div>
       )}
@@ -126,54 +103,48 @@ export function PullDownIndicator() {
   );
 }
 
-/** Animated down-arrow that rotates 180° when threshold is crossed */
-function ArrowIcon({ progress, ready }) {
-  const rotation = ready ? 180 : progress * 160;
-  const color = ready ? "#7dd3fc" : `rgba(255,255,255,${0.4 + progress * 0.55})`;
+/** Ring that fills from first visibility to 100% at MAX_PULL */
+function ProgressRing({ progress }) {
+  const offset = CIRCUMFERENCE * (1 - progress);
+  const opacity = 0.3 + progress * 0.7;
 
   return (
-    <svg
-      width={18}
-      height={18}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke={color}
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      style={{
-        transform: `rotate(${rotation}deg)`,
-        transition: ready ? "transform 0.25s cubic-bezier(0.34,1.56,0.64,1), stroke 0.2s ease" : "stroke 0.2s ease",
-        flexShrink: 0,
-      }}
-    >
-      <line x1="12" y1="5" x2="12" y2="19" />
-      <polyline points="19 12 12 19 5 12" />
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      {/* Track */}
+      <circle cx="12" cy="12" r={RADIUS} stroke="rgba(255,255,255,0.15)" strokeWidth="2.2" />
+      {/* Fill arc */}
+      <circle
+        cx="12"
+        cy="12"
+        r={RADIUS}
+        stroke={`rgba(125,211,252,${opacity})`}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeDasharray={CIRCUMFERENCE}
+        strokeDashoffset={offset}
+        transform="rotate(-90 12 12)"
+        style={{ transition: "stroke 0.2s ease" }}
+      />
     </svg>
   );
 }
 
-/** CSS-only spinner matching the accent palette */
-function SpinnerIcon() {
+/** Spinning arc shown after release */
+function SpinnerRing() {
   return (
-    <svg
-      width={18}
-      height={18}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="rgba(255,255,255,0.3)"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      style={{ flexShrink: 0 }}
-    >
-      <circle cx="12" cy="12" r="9" />
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+      {/* Track */}
+      <circle cx="12" cy="12" r={RADIUS} stroke="rgba(255,255,255,0.15)" strokeWidth="2.2" />
+      {/* Spinning arc */}
       <motion.circle
         cx="12"
         cy="12"
-        r="9"
+        r={RADIUS}
         stroke="#7dd3fc"
-        strokeDasharray="56"
-        strokeDashoffset="42"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeDasharray={CIRCUMFERENCE}
+        strokeDashoffset={CIRCUMFERENCE * 0.75}
         animate={{ rotate: 360 }}
         transition={{ duration: 0.75, ease: "linear", repeat: Infinity }}
         style={{ transformOrigin: "center" }}
