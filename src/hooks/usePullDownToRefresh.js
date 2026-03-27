@@ -5,6 +5,7 @@ const MAX_PULL = 90; // px cap on rubber-band travel (reduced by 25%)
 const RESISTANCE = 0.45; // how much drag slows the pull
 const CANCEL_SLOP = 6; // px upward wiggle before we treat as cancel
 const EMIT_EPSILON = 0.5; // ignore tiny distance deltas to reduce jitter
+const MIN_RELEASE_MS = 500; // keep spinner visible long enough to confirm refresh
 
 /**
  * usePullDownToRefresh
@@ -35,6 +36,19 @@ export function usePullDownToRefresh(onRefresh) {
   const emit = useCallback((name, detail = {}) => {
     window.dispatchEvent(new CustomEvent(name, { detail }));
   }, []);
+
+  const runRefresh = useCallback(async () => {
+    const startedAt = Date.now();
+    try {
+      await Promise.resolve(onRefresh());
+    } finally {
+      const elapsed = Date.now() - startedAt;
+      const remaining = Math.max(0, MIN_RELEASE_MS - elapsed);
+      if (remaining > 0) {
+        await new Promise((resolve) => window.setTimeout(resolve, remaining));
+      }
+    }
+  }, [onRefresh]);
 
   useEffect(() => {
     const el = document.documentElement;
@@ -93,7 +107,7 @@ export function usePullDownToRefresh(onRefresh) {
       if (distance >= THRESHOLD) {
         refreshing.current = true;
         emit("ptr:release");
-        Promise.resolve(onRefresh()).finally(() => {
+        runRefresh().finally(() => {
           refreshing.current = false;
           emit("ptr:complete");
         });
@@ -150,7 +164,7 @@ export function usePullDownToRefresh(onRefresh) {
       if (distance >= THRESHOLD) {
         refreshing.current = true;
         emit("ptr:release");
-        Promise.resolve(onRefresh()).finally(() => {
+        runRefresh().finally(() => {
           refreshing.current = false;
           emit("ptr:complete");
         });
@@ -183,5 +197,5 @@ export function usePullDownToRefresh(onRefresh) {
       window.removeEventListener("mousemove", onMouseMove);
       window.removeEventListener("mouseup", onMouseUp);
     };
-  }, [onRefresh, emit]);
+  }, [runRefresh, emit]);
 }
