@@ -1,11 +1,46 @@
-import { useState } from "react";
+import { useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 
 export function UnitToggle({ unitPrimary, onChange }) {
   const isF = unitPrimary === "F";
+  const dragState = useRef({ dragging: false, startX: 0, moved: false });
+
+  const handlePointerDown = useCallback((e) => {
+    dragState.current = { dragging: true, startX: e.clientX, moved: false };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }, []);
+
+  const handlePointerMove = useCallback((e) => {
+    if (!dragState.current.dragging) return;
+    const dx = e.clientX - dragState.current.startX;
+    if (Math.abs(dx) > 6) dragState.current.moved = true;
+  }, []);
+
+  const handlePointerUp = useCallback(
+    (e) => {
+      if (!dragState.current.dragging) return;
+      const dx = e.clientX - dragState.current.startX;
+      const wasDrag = dragState.current.moved;
+      dragState.current.dragging = false;
+      dragState.current.moved = false;
+
+      if (!wasDrag) {
+        // Tap — just toggle
+        onChange(unitPrimary === "F" ? "C" : "F");
+      } else {
+        // Drag — pick side based on direction
+        if (dx > 0) onChange("C");
+        else onChange("F");
+      }
+    },
+    [unitPrimary, onChange]
+  );
 
   return (
     <div
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -13,14 +48,12 @@ export function UnitToggle({ unitPrimary, onChange }) {
         border: "1px solid rgba(255,255,255,0.15)",
         borderRadius: 20,
         padding: 4,
-        gap: 0,
         position: "relative",
-        cursor: "pointer",
+        cursor: "grab",
         userSelect: "none",
+        touchAction: "none",
       }}
-      onClick={() => onChange(isF ? "C" : "F")}
     >
-      {/* sliding pill */}
       <motion.div
         layout
         transition={{ type: "spring", stiffness: 400, damping: 30 }}
@@ -32,19 +65,13 @@ export function UnitToggle({ unitPrimary, onChange }) {
           background: "rgba(255,255,255,0.18)",
           borderRadius: 16,
           left: isF ? 4 : "calc(50%)",
+          pointerEvents: "none",
         }}
       />
 
       {["F", "C"].map((unit) => (
-        <motion.button
+        <div
           key={unit}
-          type="button"
-          whileTap={{ scaleX: 0.88, scaleY: 0.92 }}
-          transition={{ type: "spring", stiffness: 500, damping: 20 }}
-          onClick={(e) => {
-            e.stopPropagation();
-            onChange(unit);
-          }}
           style={{
             position: "relative",
             zIndex: 1,
@@ -52,18 +79,14 @@ export function UnitToggle({ unitPrimary, onChange }) {
             borderRadius: 16,
             fontSize: 12,
             fontWeight: 500,
-            border: "none",
-            background: "transparent",
             color: unitPrimary === unit ? "#fff" : "rgba(255,255,255,0.4)",
-            cursor: "pointer",
             fontFamily: "var(--font-body)",
-            minHeight: "unset",
-            minWidth: "unset",
             transition: "color 200ms ease",
+            pointerEvents: "none",
           }}
         >
           °{unit}
-        </motion.button>
+        </div>
       ))}
     </div>
   );
