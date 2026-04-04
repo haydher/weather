@@ -14,6 +14,7 @@ import { HeroCard } from "./components/weather/HeroCard.jsx";
 import { PrecipChart } from "./components/weather/PrecipChart.jsx";
 import { HourlyStrip } from "./components/weather/HourlyStrip.jsx";
 import { DayForecastList } from "./components/weather/DayForecastList.jsx";
+import { SunFlowCard } from "./components/weather/SunFlowCard.jsx";
 import { LiveMapSection } from "./components/weather/LiveMapSection.jsx";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary.jsx";
 import { PullDownIndicator } from "./components/ui/PullDownIndicator.jsx";
@@ -53,10 +54,7 @@ export default function App() {
   const periods = forecast?.properties?.periods ?? [];
   const hourlyPeriods = forecastHourly?.properties?.periods ?? [];
 
-  const sunByDay = useMemo(
-    () => resolveSunDatesByDay(sunDaily, hourlyPeriods),
-    [sunDaily, hourlyPeriods]
-  );
+  const sunByDay = useMemo(() => resolveSunDatesByDay(sunDaily, hourlyPeriods), [sunDaily, hourlyPeriods]);
 
   const { currentPeriod, todayHigh, todayLow, timeGreeting } = useMemo(() => {
     const now = new Date();
@@ -145,6 +143,12 @@ export default function App() {
     return groups;
   }, [periods]);
 
+  const todaySun = useMemo(() => {
+    if (!sunByDay || !dayGroups.length) return null;
+    const group = dayGroups.find((g) => g.name === "Today") ?? dayGroups[0];
+    return sunByDay[group.day] ?? null;
+  }, [sunByDay, dayGroups]);
+
   const isLoading = (status === "loading" || locationDetecting) && !!selectedPlace;
   const isSuccess = status === "success" && !!currentPeriod && !locationDetecting;
 
@@ -216,6 +220,12 @@ export default function App() {
         <ErrorBoundary>
           {status === "success" && selectedPlace && (
             <LiveMapSection selectedPlace={selectedPlace} unitPrimary={unitPrimary} />
+          )}
+        </ErrorBoundary>
+
+        <ErrorBoundary>
+          {selectedPlace && (dayGroups.length > 0 || isLoading) && (
+            <SunFlowCard sunrise={todaySun?.sunrise ?? null} sunset={todaySun?.sunset ?? null} isLoading={isLoading} />
           )}
         </ErrorBoundary>
 
