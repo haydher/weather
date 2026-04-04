@@ -5,6 +5,7 @@ import { useGeocodeSearch } from "./hooks/useGeocodeSearch.js";
 import { useNwsForecast } from "./hooks/useNwsForecast.js";
 import { formatTime } from "./lib/formatters.js";
 import { getTimeGreeting } from "./lib/weatherUtils.js";
+import { resolveSunDatesByDay } from "./lib/sunTimes.js";
 import { Starfield } from "./components/layout/Starfield.jsx";
 import { SearchBar } from "./components/search/SearchBar.jsx";
 import { ErrorBanner } from "./components/ui/ErrorBanner.jsx";
@@ -36,7 +37,8 @@ export default function App() {
 
   const { selectedPlace, setSelectedPlace, locationDetecting } = useLocation();
   const search = useGeocodeSearch(setSelectedPlace);
-  const { forecast, forecastHourly, alerts, status, errorMessage, retry, refresh } = useNwsForecast(selectedPlace);
+  const { forecast, forecastHourly, sunDaily, alerts, status, errorMessage, retry, refresh } =
+    useNwsForecast(selectedPlace);
 
   usePullDownToRefresh(async () => {
     await refresh();
@@ -50,6 +52,11 @@ export default function App() {
 
   const periods = forecast?.properties?.periods ?? [];
   const hourlyPeriods = forecastHourly?.properties?.periods ?? [];
+
+  const sunByDay = useMemo(
+    () => resolveSunDatesByDay(sunDaily, hourlyPeriods),
+    [sunDaily, hourlyPeriods]
+  );
 
   const { currentPeriod, todayHigh, todayLow, timeGreeting } = useMemo(() => {
     const now = new Date();
@@ -197,7 +204,12 @@ export default function App() {
 
         <ErrorBoundary>
           {selectedPlace && (hourlyPeriods.length > 0 || isLoading) && (
-            <HourlyStrip hourlyPeriods={hourlyPeriods} unitPrimary={unitPrimary} isLoading={isLoading} />
+            <HourlyStrip
+              hourlyPeriods={hourlyPeriods}
+              unitPrimary={unitPrimary}
+              isLoading={isLoading}
+              sunByDay={sunByDay}
+            />
           )}
         </ErrorBoundary>
 
@@ -214,6 +226,7 @@ export default function App() {
               hourlyPeriods={hourlyPeriods}
               unitPrimary={unitPrimary}
               isLoading={isLoading}
+              sunByDay={sunByDay}
             />
           )}
         </ErrorBoundary>

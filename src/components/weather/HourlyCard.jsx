@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { fToC } from "../../lib/formatters.js";
 import { WeatherIcon } from "../ui/WeatherIcon.jsx";
+import { SunEventIcon } from "../ui/SunEventIcon.jsx";
 
 const sizeStyles = {
   sm: {
@@ -17,7 +18,17 @@ const sizeStyles = {
   },
 };
 
-export function HourlyCard({ period, unitPrimary, formatTime, isNow, size = "md", index = 0, delay = 0.3 }) {
+export function HourlyCard({
+  period,
+  unitPrimary,
+  formatTime: formatTimeProp,
+  isNow,
+  size = "md",
+  index = 0,
+  delay = 0.3,
+  sunriseAt = null,
+  sunsetAt = null,
+}) {
   const style = sizeStyles[size] ?? sizeStyles.md;
   const isFahrenheit = unitPrimary === "F";
   const tempDisplay = isFahrenheit ? period.temperature : fToC(period.temperature);
@@ -46,9 +57,26 @@ export function HourlyCard({ period, unitPrimary, formatTime, isNow, size = "md"
       }}
     >
       <div style={{ ...style.time, color: "var(--text-secondary)", marginBottom: size === "sm" ? 2 : 4 }}>
-        {isNow ? "Now" : formatTime(period.startTime)}
+        {isNow ? "Now" : formatTimeProp(period.startTime)}
       </div>
-      <WeatherIcon shortForecast={period.shortForecast} isDaytime={period.isDaytime} size={style.iconSize} />
+      {sunriseAt || sunsetAt ? (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: size === "sm" ? 2 : 3,
+            marginBottom: size === "sm" ? 2 : 4,
+            minHeight: style.iconSize,
+            justifyContent: "center",
+          }}
+        >
+          {sunriseAt && <SunEventIcon variant="sunrise" size={style.iconSize} />}
+          {sunsetAt && <SunEventIcon variant="sunset" size={style.iconSize} />}
+        </div>
+      ) : (
+        <WeatherIcon shortForecast={period.shortForecast} isDaytime={period.isDaytime} size={style.iconSize} />
+      )}
       <div style={{ fontFamily: "var(--font-display)", ...style.temp, fontWeight: 300, fontSize: 16 }}>
         {tempDisplay}°{unitPrimary}
       </div>

@@ -27,6 +27,9 @@ export const IPAPI_URL = 'https://ipapi.co/json/';
 export const WEATHER_ICONS_BASE = 'https://cdn.jsdelivr.net/gh/basmilius/weather-icons@2.0.0/production/fill/darksky';
 export const WEATHER_ICONS_FALLBACK = 'https://cdn.jsdelivr.net/gh/basmilius/weather-icons@2.0.0/production/fill/darksky';
 
+/** Sunrise / sunset (fill); darksky set does not include these names */
+export const SUN_EVENT_ICONS_BASE = 'https://cdn.jsdelivr.net/gh/basmilius/weather-icons@2.0.0/production/fill/all';
+
 export function isInUS(lat, lon) {
   return lat >= 24 && lat <= 50 && lon >= -125 && lon <= -66;
 }

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { DayForecastRow } from "./DayForecastRow.jsx";
 
-export function DayForecastList({ dayGroups, hourlyPeriods, unitPrimary, isLoading }) {
+export function DayForecastList({ dayGroups, hourlyPeriods, unitPrimary, isLoading, sunByDay }) {
   const [expandedDayIndex, setExpandedDayIndex] = useState(null);
 
   if (isLoading) {
@@ -59,6 +59,7 @@ export function DayForecastList({ dayGroups, hourlyPeriods, unitPrimary, isLoadi
             key={group.day}
             group={group}
             hourlyPeriods={hourlyPeriods}
+            sunByDay={sunByDay}
             expanded={expandedDayIndex === idx}
             onToggle={setExpandedDayIndex}
             unitPrimary={unitPrimary}

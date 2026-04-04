@@ -4,8 +4,9 @@ import { fToC } from "../../lib/formatters.js";
 import { formatTime } from "../../lib/formatters.js";
 import { WeatherIcon } from "../ui/WeatherIcon.jsx";
 import { HourlyCard } from "./HourlyCard.jsx";
+import { sunEventsForPeriod } from "../../lib/sunTimes.js";
 
-export function DayForecastRow({ group, hourlyPeriods, expanded, onToggle, unitPrimary, index, isLast }) {
+export function DayForecastRow({ group, hourlyPeriods, sunByDay, expanded, onToggle, unitPrimary, index, isLast }) {
   const now = new Date();
   const high = group.dayPeriod?.temperature ?? group.nightPeriod?.temperature;
   const low = group.nightPeriod?.temperature ?? group.dayPeriod?.temperature;
@@ -91,6 +92,7 @@ export function DayForecastRow({ group, hourlyPeriods, expanded, onToggle, unitP
                     const start = new Date(p.startTime);
                     const end = new Date(p.endTime);
                     const isNow = now >= start && now < end;
+                    const { sunriseAt, sunsetAt } = sunEventsForPeriod(p, sunByDay);
                     return (
                       <HourlyCard
                         delay={0}
@@ -101,6 +103,8 @@ export function DayForecastRow({ group, hourlyPeriods, expanded, onToggle, unitP
                         isNow={isNow}
                         size="sm"
                         index={hourIndex}
+                        sunriseAt={sunriseAt}
+                        sunsetAt={sunsetAt}
                       />
                     );
                   })}

@@ -31,6 +31,7 @@ export function useNwsForecast(selectedPlace) {
   const points = query.data?.points ?? null;
   const forecast = query.data?.forecast ?? null;
   const forecastHourly = query.data?.forecastHourly ?? null;
+  const sunDaily = query.data?.sunDaily ?? null;
   const alerts = query.data?.alerts ?? [];
   const errorMessage = manualErrorMessage || query.error?.message || (query.isError ? "Something went wrong" : "");
   const refreshing = query.isRefetching;
@@ -51,6 +52,7 @@ export function useNwsForecast(selectedPlace) {
     points,
     forecast,
     forecastHourly,
+    sunDaily,
     alerts,
     status,
     errorMessage,

@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import { formatTime } from "../../lib/formatters.js";
+import { sunEventsForPeriod } from "../../lib/sunTimes.js";
 import { HourlyCard } from "./HourlyCard.jsx";
 
 // Safari-safe: use translateZ(0) to force GPU layer,
@@ -12,7 +13,7 @@ const safariSafeSection = {
   style: { overflow: "visible", transform: "translateZ(0)", WebkitTransform: "translateZ(0)" },
 };
 
-export function HourlyStrip({ hourlyPeriods, unitPrimary, isLoading }) {
+export function HourlyStrip({ hourlyPeriods, unitPrimary, isLoading, sunByDay }) {
   if (isLoading) {
     return (
       <motion.section
@@ -58,6 +59,7 @@ export function HourlyStrip({ hourlyPeriods, unitPrimary, isLoading }) {
             const start = new Date(p.startTime);
             const end = new Date(p.endTime);
             const isNow = now >= start && now < end && start.toDateString() === now.toDateString();
+            const { sunriseAt, sunsetAt } = sunEventsForPeriod(p, sunByDay);
             return (
               <HourlyCard
                 key={p.startTime}
@@ -67,6 +69,8 @@ export function HourlyStrip({ hourlyPeriods, unitPrimary, isLoading }) {
                 isNow={isNow}
                 size="md"
                 index={i}
+                sunriseAt={sunriseAt}
+                sunsetAt={sunsetAt}
               />
             );
           })}
