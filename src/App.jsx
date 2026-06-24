@@ -225,12 +225,6 @@ export default function App() {
 
         <ErrorBoundary>
           {selectedPlace && (dayGroups.length > 0 || isLoading) && (
-            <SunFlowCard sunrise={todaySun?.sunrise ?? null} sunset={todaySun?.sunset ?? null} isLoading={isLoading} />
-          )}
-        </ErrorBoundary>
-
-        <ErrorBoundary>
-          {selectedPlace && (dayGroups.length > 0 || isLoading) && (
             <DayForecastList
               dayGroups={dayGroups}
               hourlyPeriods={hourlyPeriods}
@@ -241,6 +235,12 @@ export default function App() {
           )}
         </ErrorBoundary>
 
+        <ErrorBoundary>
+          {selectedPlace && (dayGroups.length > 0 || isLoading) && (
+            <SunFlowCard sunrise={todaySun?.sunrise ?? null} sunset={todaySun?.sunset ?? null} isLoading={isLoading} />
+          )}
+        </ErrorBoundary>
+        
         {!selectedPlace && !locationDetecting && status === "idle" && (
           <p style={{ textAlign: "center", color: "var(--text-secondary)", padding: 24 }}>
             Search a US city to get started.
